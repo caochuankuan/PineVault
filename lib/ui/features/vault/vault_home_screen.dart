@@ -177,7 +177,7 @@ class _VaultList extends StatelessWidget {
               hintText: '搜索名称、用户名或网站',
               prefixIcon: const Icon(Icons.search_rounded),
               filled: true,
-              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -190,7 +190,9 @@ class _VaultList extends StatelessWidget {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(
-                  color: Theme.of(context).colorScheme.outlineVariant,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outlineVariant.withValues(alpha: 0.55),
                 ),
               ),
               focusedBorder: OutlineInputBorder(
