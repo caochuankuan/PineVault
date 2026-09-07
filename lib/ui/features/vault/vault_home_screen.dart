@@ -229,7 +229,7 @@ class _VaultList extends StatelessWidget {
                       trailing: item.favorite
                           ? const Icon(Icons.star, color: Colors.amber)
                           : null,
-                      onTap: () => _openEditor(context, viewModel, item),
+                      onTap: () => _openViewer(context, viewModel, item),
                     );
                   },
                 ),
@@ -299,6 +299,295 @@ Future<void> _openEditor(
       ),
     ),
   );
+}
+
+Future<void> _openViewer(
+  BuildContext context,
+  VaultViewModel viewModel,
+  VaultItem item,
+) async {
+  final window = MediaQuery.sizeOf(context);
+  _ViewerAction? action;
+  if (window.width < 600) {
+    action = await showModalBottomSheet<_ViewerAction>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ItemViewer(viewModel: viewModel, item: item),
+    );
+  } else {
+    action = await showDialog<_ViewerAction>(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        clipBehavior: Clip.antiAlias,
+        child: SizedBox(
+          width: 560,
+          height: (window.height * 0.72).clamp(460.0, 620.0),
+          child: _ItemViewer(viewModel: viewModel, item: item),
+        ),
+      ),
+    );
+  }
+  if (action == _ViewerAction.edit && context.mounted) {
+    await _openEditor(context, viewModel, item);
+  }
+}
+
+enum _ViewerAction { edit }
+
+class _ItemViewer extends StatefulWidget {
+  const _ItemViewer({required this.viewModel, required this.item});
+
+  final VaultViewModel viewModel;
+  final VaultItem item;
+
+  @override
+  State<_ItemViewer> createState() => _ItemViewerState();
+}
+
+class _ItemViewerState extends State<_ItemViewer> {
+  bool _obscurePassword = true;
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compact = MediaQuery.sizeOf(context).width < 600;
+
+    Widget valueRow(String label, String value, IconData icon) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label, style: theme.textTheme.labelMedium),
+                      const SizedBox(height: 3),
+                      SelectableText(
+                        value.isEmpty ? '未设置' : value,
+                        style: theme.textTheme.bodyLarge,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final password = _obscurePassword
+        ? ('•' * widget.item.password.length)
+        : widget.item.password;
+
+    return Material(
+      color: theme.colorScheme.surface,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, compact ? 12 : 20, 20, 12),
+          child: Column(
+            children: [
+              if (compact)
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              Row(
+                children: [
+                  CircleAvatar(
+                    child: Text(
+                      widget.item.title.isEmpty
+                          ? '?'
+                          : widget.item.title[0].toUpperCase(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      widget.item.title,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (compact)
+                    IconButton(
+                      tooltip: '关闭',
+                      onPressed: _busy ? null : () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.viewInsetsOf(context).bottom + 8,
+                  ),
+                  child: Column(
+                    children: [
+                      valueRow(
+                        '用户名',
+                        widget.item.username,
+                        Icons.person_outline,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 13,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.key_outlined,
+                                  size: 20,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '密码',
+                                        style: theme.textTheme.labelMedium,
+                                      ),
+                                      const SizedBox(height: 3),
+                                      SelectableText(
+                                        password,
+                                        style: theme.textTheme.bodyLarge,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: _obscurePassword ? '显示密码' : '隐藏密码',
+                                  onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  ),
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      valueRow(
+                        '网站',
+                        widget.item.urls.isEmpty ? '' : widget.item.urls.first,
+                        Icons.link_outlined,
+                      ),
+                      if (widget.item.notes.isNotEmpty)
+                        valueRow('备注', widget.item.notes, Icons.notes_outlined),
+                      if (widget.item.favorite)
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Chip(
+                            avatar: Icon(Icons.star, size: 18),
+                            label: Text('已收藏'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: _busy ? null : _delete,
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('删除'),
+                  ),
+                  const Spacer(),
+                  if (!compact)
+                    OutlinedButton(
+                      onPressed: _busy ? null : () => Navigator.pop(context),
+                      child: const Text('关闭'),
+                    ),
+                  if (compact)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _busy ? null : () => Navigator.pop(context),
+                        child: const Text('关闭'),
+                      ),
+                    ),
+                  const SizedBox(width: 10),
+                  if (compact)
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _busy ? null : _edit,
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('编辑'),
+                      ),
+                    )
+                  else
+                    FilledButton.icon(
+                      onPressed: _busy ? null : _edit,
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('编辑'),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _edit() {
+    Navigator.pop(context, _ViewerAction.edit);
+  }
+
+  Future<void> _delete() async {
+    setState(() => _busy = true);
+    final deleted = await widget.viewModel.deleteItem(widget.item);
+    if (!mounted) return;
+    if (deleted) {
+      Navigator.pop(context);
+    } else {
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(widget.viewModel.errorMessage ?? '删除失败，请重试')),
+      );
+    }
+  }
 }
 
 class _ItemEditorDialog extends StatefulWidget {
