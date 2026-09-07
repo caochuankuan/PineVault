@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../domain/models/vault_item.dart';
+import '../../../domain/models/vault_group.dart';
 import '../../core/vault_brand.dart';
 import '../settings/change_master_password_dialog.dart';
 import '../settings/sync_history_screen.dart';
@@ -1301,27 +1302,12 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
                         ),
                         const SizedBox(height: 4),
                         if (widget.viewModel.groups.isNotEmpty) ...[
-                          DropdownButtonFormField<String>(
-                            initialValue:
-                                widget.viewModel.groups.any(
-                                  (group) => group.id == _groupId,
-                                )
-                                ? _groupId
-                                : widget.viewModel.groups.first.id,
-                            decoration: decoration('分组', Icons.folder_outlined),
-                            items: widget.viewModel.groups
-                                .map(
-                                  (group) => DropdownMenuItem(
-                                    value: group.id,
-                                    child: Text(group.name),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: _busy
-                                ? null
-                                : (value) => setState(
-                                    () => _groupId = value ?? _groupId,
-                                  ),
+                          _GroupSelector(
+                            groups: widget.viewModel.groups,
+                            selectedId: _groupId,
+                            enabled: !_busy,
+                            onSelected: (value) =>
+                                setState(() => _groupId = value),
                           ),
                           const SizedBox(height: 10),
                         ],
@@ -1436,6 +1422,99 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
   void _showError() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(widget.viewModel.errorMessage ?? '操作失败，请重试')),
+    );
+  }
+}
+
+class _GroupSelector extends StatelessWidget {
+  const _GroupSelector({
+    required this.groups,
+    required this.selectedId,
+    required this.enabled,
+    required this.onSelected,
+  });
+
+  final List<VaultGroup> groups;
+  final String selectedId;
+  final bool enabled;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final selected = groups.firstWhere(
+      (group) => group.id == selectedId,
+      orElse: () => groups.first,
+    );
+    return GestureDetector(
+      onTap: enabled
+          ? () async {
+              final value = await showModalBottomSheet<String>(
+                context: context,
+                showDragHandle: true,
+                useSafeArea: true,
+                builder: (context) => SafeArea(
+                  child: ListView(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.only(bottom: 20),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                        child: Text(
+                          '选择分组',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      ...groups.map(
+                        (group) => ListTile(
+                          leading: Icon(
+                            group.id == selected.id
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_off,
+                            color: group.id == selected.id
+                                ? theme.colorScheme.primary
+                                : null,
+                          ),
+                          title: Text(group.name),
+                          onTap: () => Navigator.pop(context, group.id),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+              if (value != null) onSelected(value);
+            }
+          : null,
+      child: Container(
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.folder_outlined, size: 20),
+            const SizedBox(width: 12),
+            const Text('分组'),
+            const Spacer(),
+            Text(
+              selected.name,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Icon(Icons.expand_more),
+          ],
+        ),
+      ),
     );
   }
 }
