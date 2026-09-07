@@ -76,18 +76,40 @@ class VaultHomeScreen extends StatelessWidget {
                 ),
               ),
               PopupMenuItem(
+                value: _VaultMenuAction.toggleWebsites,
+                child: _MenuRow(
+                  icon: viewModel.showWebsites
+                      ? Icons.link_outlined
+                      : Icons.link_off_outlined,
+                  label: viewModel.showWebsites ? '隐藏网站' : '展示网站',
+                  active: viewModel.showWebsites,
+                ),
+              ),
+              PopupMenuItem(
                 value: _VaultMenuAction.sortByTime,
                 child: _MenuRow(
-                  icon: Icons.schedule_outlined,
-                  label: '按时间排序',
+                  icon:
+                      viewModel.sortOrder == VaultSortOrder.time &&
+                          viewModel.sortReversed
+                      ? Icons.south_outlined
+                      : Icons.north_outlined,
+                  label: viewModel.sortOrder == VaultSortOrder.time
+                      ? (viewModel.sortReversed ? '按时间倒序' : '按时间正序')
+                      : '按时间排序',
                   active: viewModel.sortOrder == VaultSortOrder.time,
                 ),
               ),
               PopupMenuItem(
                 value: _VaultMenuAction.sortByName,
                 child: _MenuRow(
-                  icon: Icons.sort_by_alpha,
-                  label: '按名称排序',
+                  icon:
+                      viewModel.sortOrder == VaultSortOrder.name &&
+                          viewModel.sortReversed
+                      ? Icons.south_outlined
+                      : Icons.north_outlined,
+                  label: viewModel.sortOrder == VaultSortOrder.name
+                      ? (viewModel.sortReversed ? '按名称倒序' : '按名称正序')
+                      : '按名称排序',
                   active: viewModel.sortOrder == VaultSortOrder.name,
                 ),
               ),
@@ -164,6 +186,7 @@ enum _VaultMenuAction {
   changeMasterPassword,
   lock,
   togglePasswords,
+  toggleWebsites,
   sortByTime,
   sortByName,
 }
@@ -219,6 +242,8 @@ Future<void> _handleMenu(BuildContext context, _VaultMenuAction action) async {
       viewModel.lock();
     case _VaultMenuAction.togglePasswords:
       viewModel.setShowPasswords(!viewModel.showPasswords);
+    case _VaultMenuAction.toggleWebsites:
+      viewModel.setShowWebsites(!viewModel.showWebsites);
     case _VaultMenuAction.sortByTime:
       viewModel.setSortOrder(VaultSortOrder.time);
     case _VaultMenuAction.sortByName:
@@ -299,7 +324,8 @@ class _VaultList extends StatelessWidget {
                         ),
                       ),
                       title: Text(item.title),
-                      subtitle: viewModel.showPasswords
+                      subtitle:
+                          viewModel.showPasswords || viewModel.showWebsites
                           ? Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -310,19 +336,21 @@ class _VaultList extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                if (item.urls.isNotEmpty)
+                                if (viewModel.showWebsites &&
+                                    item.urls.isNotEmpty)
                                   Text(
                                     item.urls.first,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                Text(
-                                  item.password.isEmpty
-                                      ? '未设置密码'
-                                      : item.password,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                if (viewModel.showPasswords)
+                                  Text(
+                                    item.password.isEmpty
+                                        ? '未设置密码'
+                                        : item.password,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                               ],
                             )
                           : Text(

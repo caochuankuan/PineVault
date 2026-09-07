@@ -49,7 +49,9 @@ class VaultViewModel extends ChangeNotifier {
   Timer? _debouncedSyncTimer;
   String _query = '';
   bool _showPasswords = false;
+  bool _showWebsites = false;
   VaultSortOrder _sortOrder = VaultSortOrder.name;
+  bool _sortReversed = false;
 
   VaultAppState get state => _state;
   String? get errorMessage => _errorMessage;
@@ -59,7 +61,9 @@ class VaultViewModel extends ChangeNotifier {
   List<SyncHistoryEntry> get syncHistory => _syncHistory;
   String get query => _query;
   bool get showPasswords => _showPasswords;
+  bool get showWebsites => _showWebsites;
   VaultSortOrder get sortOrder => _sortOrder;
+  bool get sortReversed => _sortReversed;
   bool get busy =>
       _state == VaultAppState.saving || _state == VaultAppState.syncing;
 
@@ -78,9 +82,10 @@ class VaultViewModel extends ChangeNotifier {
     final result = filtered.toList(growable: false);
     result.sort((a, b) {
       if (a.favorite != b.favorite) return a.favorite ? -1 : 1;
-      return _sortOrder == VaultSortOrder.time
-          ? b.updatedAt.compareTo(a.updatedAt)
+      final comparison = _sortOrder == VaultSortOrder.time
+          ? a.updatedAt.compareTo(b.updatedAt)
           : a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      return _sortReversed ? -comparison : comparison;
     });
     return result;
   }
@@ -91,9 +96,19 @@ class VaultViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setShowWebsites(bool value) {
+    if (_showWebsites == value) return;
+    _showWebsites = value;
+    notifyListeners();
+  }
+
   void setSortOrder(VaultSortOrder value) {
-    if (_sortOrder == value) return;
-    _sortOrder = value;
+    if (_sortOrder == value) {
+      _sortReversed = !_sortReversed;
+    } else {
+      _sortOrder = value;
+      _sortReversed = false;
+    }
     notifyListeners();
   }
 
