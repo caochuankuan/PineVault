@@ -16,7 +16,7 @@ class VaultHomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const VaultBrand(compact: true),
         actions: [
-          if (viewModel.state == VaultAppState.saving)
+          if (viewModel.busy)
             const Padding(
               padding: EdgeInsets.all(16),
               child: SizedBox.square(
@@ -25,10 +25,13 @@ class VaultHomeScreen extends StatelessWidget {
               ),
             ),
           IconButton(
+            tooltip: '立即同步',
+            onPressed: viewModel.busy ? null : () => _sync(context, viewModel),
+            icon: const Icon(Icons.sync),
+          ),
+          IconButton(
             tooltip: 'WebDAV 设置',
-            onPressed:
-                viewModel.state == VaultAppState.saving ||
-                    viewModel.vaultId == null
+            onPressed: viewModel.busy || viewModel.vaultId == null
                 ? null
                 : () => Navigator.push<void>(
                     context,
@@ -41,9 +44,7 @@ class VaultHomeScreen extends StatelessWidget {
           ),
           IconButton(
             tooltip: '锁定',
-            onPressed: viewModel.state == VaultAppState.saving
-                ? null
-                : viewModel.lock,
+            onPressed: viewModel.busy ? null : viewModel.lock,
             icon: const Icon(Icons.lock_outline),
           ),
         ],
@@ -72,7 +73,7 @@ class VaultHomeScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('add-item'),
-        onPressed: viewModel.state == VaultAppState.saving
+        onPressed: viewModel.busy
             ? null
             : () => _openEditor(context, viewModel),
         icon: const Icon(Icons.add),
@@ -80,6 +81,15 @@ class VaultHomeScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _sync(BuildContext context, VaultViewModel viewModel) async {
+  final succeeded = await viewModel.sync();
+  if (!context.mounted) return;
+  final message = succeeded ? viewModel.syncMessage : viewModel.errorMessage;
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(message ?? '同步失败，请重试')));
 }
 
 class _VaultList extends StatelessWidget {

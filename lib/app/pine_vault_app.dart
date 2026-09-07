@@ -70,7 +70,8 @@ class _AppRouter extends StatelessWidget {
             onUnlock: viewModel.unlock,
           ),
           VaultAppState.unlocked ||
-          VaultAppState.saving => const VaultHomeScreen(),
+          VaultAppState.saving ||
+          VaultAppState.syncing => const VaultHomeScreen(),
         };
       },
     );

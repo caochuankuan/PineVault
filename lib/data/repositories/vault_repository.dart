@@ -30,6 +30,47 @@ class VaultRepository {
 
   Vault? get vault => _vault;
 
+  String exportEncryptedVault() {
+    final envelope = _envelope;
+    if (envelope == null) throw StateError('Vault is locked.');
+    return _codec.encodeEnvelope(envelope);
+  }
+
+  String encryptVaultForExport(Vault vault) {
+    final current = _requireVault();
+    final envelope = _envelope;
+    final key = _key;
+    if (envelope == null || key == null) throw StateError('Vault is locked.');
+    if (vault.id != current.id) {
+      throw const FormatException('不能导出其他密码库');
+    }
+    final encrypted = _cryptoService.encryptVault(
+      envelope: envelope,
+      key: key,
+      vault: vault,
+    );
+    return _codec.encodeEnvelope(encrypted);
+  }
+
+  Vault decryptEncryptedVault(String encoded) {
+    final current = _requireVault();
+    final key = _key;
+    if (key == null) throw StateError('Vault is locked.');
+    final envelope = _codec.decodeEnvelope(encoded);
+    if (envelope.vaultId != current.id) {
+      throw const FormatException('同步文件不属于当前密码库');
+    }
+    return _cryptoService.decryptVault(envelope: envelope, key: key);
+  }
+
+  Future<void> replaceVault(Vault vault) async {
+    final current = _requireVault();
+    if (vault.id != current.id) {
+      throw const FormatException('不能替换为其他密码库');
+    }
+    await _save(vault);
+  }
+
   Future<bool> hasVault() => _fileService.exists();
 
   Future<void> create(String masterPassword) async {

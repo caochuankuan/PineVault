@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../data/repositories/vault_repository.dart';
 import '../../../domain/models/vault_item.dart';
+import '../../../domain/use_cases/sync_vault_use_case.dart';
 
 enum VaultAppState {
   initializing,
@@ -11,21 +12,30 @@ enum VaultAppState {
   unlocking,
   unlocked,
   saving,
+  syncing,
 }
 
 class VaultViewModel extends ChangeNotifier {
-  VaultViewModel({required VaultRepository repository})
-    : _repository = repository;
+  VaultViewModel({
+    required VaultRepository repository,
+    required SyncVaultUseCase syncVault,
+  }) : _repository = repository,
+       _syncVault = syncVault;
 
   final VaultRepository _repository;
+  final SyncVaultUseCase _syncVault;
   VaultAppState _state = VaultAppState.initializing;
   String? _errorMessage;
+  String? _syncMessage;
   String _query = '';
 
   VaultAppState get state => _state;
   String? get errorMessage => _errorMessage;
+  String? get syncMessage => _syncMessage;
   String get query => _query;
   String? get vaultId => _repository.vault?.id;
+  bool get busy =>
+      _state == VaultAppState.saving || _state == VaultAppState.syncing;
 
   List<VaultItem> get items {
     final allItems = _repository.vault?.items ?? const <VaultItem>[];
@@ -94,6 +104,32 @@ class VaultViewModel extends ChangeNotifier {
     operation: () => _repository.delete(item),
   );
 
+  Future<bool> sync() async {
+    _state = VaultAppState.syncing;
+    _errorMessage = null;
+    _syncMessage = null;
+    notifyListeners();
+    try {
+      final result = await _syncVault();
+      _syncMessage = switch (result.outcome) {
+        VaultSyncOutcome.uploaded => '密码库已上传',
+        VaultSyncOutcome.downloaded => '已应用远端更新',
+        VaultSyncOutcome.merged when result.conflictCount > 0 =>
+          '同步完成，已生成 ${result.conflictCount} 个冲突副本',
+        VaultSyncOutcome.merged => '同步合并完成',
+        VaultSyncOutcome.upToDate => '已经是最新版本',
+      };
+      _state = VaultAppState.unlocked;
+      notifyListeners();
+      return true;
+    } catch (error) {
+      _state = VaultAppState.unlocked;
+      _errorMessage = error.toString().replaceFirst('Bad state: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
   void setQuery(String value) {
     _query = value;
     notifyListeners();
@@ -103,6 +139,7 @@ class VaultViewModel extends ChangeNotifier {
     _repository.lock();
     _query = '';
     _errorMessage = null;
+    _syncMessage = null;
     _state = VaultAppState.locked;
     notifyListeners();
   }

@@ -137,6 +137,17 @@ class SodiumCryptoService {
     return envelope.copyWithPayload(_encryptPayload(vault, key));
   }
 
+  Vault decryptVault({
+    required VaultEnvelope envelope,
+    required SecureKey key,
+  }) {
+    final vault = _decryptPayload(envelope.vaultId, envelope.payload, key);
+    if (vault.id != envelope.vaultId) {
+      throw const FormatException('Vault identifier mismatch.');
+    }
+    return vault;
+  }
+
   CipherPayload _encryptPayload(Vault vault, SecureKey key) {
     final nonce = _sodium.randombytes.buf(_aead.nonceBytes);
     final message = Uint8List.fromList(_codec.encodeVault(vault));
