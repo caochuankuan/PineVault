@@ -393,8 +393,11 @@ class _ItemViewerState extends State<_ItemViewer> {
                               visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(
-                                minWidth: 32,
+                                minWidth: 28,
                                 minHeight: 28,
+                              ),
+                              style: IconButton.styleFrom(
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                               tooltip: '复制$label',
                               onPressed: onCopy,
@@ -405,8 +408,11 @@ class _ItemViewerState extends State<_ItemViewer> {
                               visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(
-                                minWidth: 32,
+                                minWidth: 28,
                                 minHeight: 28,
+                              ),
+                              style: IconButton.styleFrom(
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                               tooltip: '打开$label',
                               onPressed: onOpen,
@@ -621,7 +627,12 @@ class _ItemViewerState extends State<_ItemViewer> {
                             : () => _openWebsite(widget.item.urls.first),
                       ),
                       if (widget.item.notes.isNotEmpty)
-                        valueRow('备注', widget.item.notes, Icons.notes_outlined),
+                        valueRow(
+                          '备注',
+                          widget.item.notes,
+                          Icons.notes_outlined,
+                          onCopy: () => _copy(widget.item.notes, '备注'),
+                        ),
                     ],
                   ),
                 ),
