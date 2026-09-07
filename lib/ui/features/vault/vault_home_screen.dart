@@ -476,18 +476,27 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
                           decoration: decoration('备注', Icons.notes_outlined),
                         ),
                         const SizedBox(height: 4),
-                        SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          value: _favorite,
-                          title: const Text('收藏此条目'),
-                          secondary: const Icon(Icons.star_outline),
-                          hoverColor: Colors.transparent,
-                          overlayColor: const WidgetStatePropertyAll(
-                            Colors.transparent,
-                          ),
-                          onChanged: _busy
-                              ? null
-                              : (value) => setState(() => _favorite = value),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.star_outline,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(child: Text('收藏此条目')),
+                            Checkbox.adaptive(
+                              value: _favorite,
+                              splashRadius: 0,
+                              overlayColor: const WidgetStatePropertyAll(
+                                Colors.transparent,
+                              ),
+                              onChanged: _busy
+                                  ? null
+                                  : (value) => setState(
+                                      () => _favorite = value ?? false,
+                                    ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
