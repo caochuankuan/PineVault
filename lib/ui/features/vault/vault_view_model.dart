@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../data/models/sync_history_entry.dart';
+import '../../../data/models/kdbx_transfer_data.dart';
 import '../../../data/repositories/vault_repository.dart';
+import '../../../data/services/kdbx_transfer_service.dart';
 import '../../../data/services/sync_history_service.dart';
 import '../../../domain/models/vault_item.dart';
 import '../../../domain/models/vault_group.dart';
@@ -27,15 +29,18 @@ enum VaultSortOrder { name, time }
 class VaultViewModel extends ChangeNotifier {
   VaultViewModel({
     required VaultRepository repository,
+    required KdbxTransferService kdbxTransferService,
     required SyncVaultUseCase syncVault,
     required RestoreVaultUseCase restoreVault,
     required SyncHistoryService syncHistoryService,
   }) : _repository = repository,
+       _kdbxTransferService = kdbxTransferService,
        _syncVault = syncVault,
        _restoreVault = restoreVault,
        _syncHistoryService = syncHistoryService;
 
   final VaultRepository _repository;
+  final KdbxTransferService _kdbxTransferService;
   final SyncVaultUseCase _syncVault;
   final RestoreVaultUseCase _restoreVault;
   final SyncHistoryService _syncHistoryService;
@@ -340,6 +345,53 @@ class VaultViewModel extends ChangeNotifier {
     return succeeded;
   }
 
+  Future<KdbxImportSummary?> importKdbx({
+    required Uint8List bytes,
+    required String password,
+  }) async {
+    _state = VaultAppState.saving;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final data = await _kdbxTransferService.decode(
+        bytes: bytes,
+        password: password,
+      );
+      final summary = await _repository.importKdbx(data);
+      _state = VaultAppState.unlocked;
+      notifyListeners();
+      if (summary.itemCount > 0) _scheduleSync('KDBX 导入后自动同步');
+      return summary;
+    } catch (error) {
+      _state = VaultAppState.unlocked;
+      _errorMessage = _readableError(error);
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<Uint8List?> exportKdbx(String password) async {
+    final vault = _repository.vault;
+    if (vault == null) return null;
+    _state = VaultAppState.saving;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final bytes = await _kdbxTransferService.encode(
+        vault: vault,
+        password: password,
+      );
+      _state = VaultAppState.unlocked;
+      notifyListeners();
+      return bytes;
+    } catch (error) {
+      _state = VaultAppState.unlocked;
+      _errorMessage = _readableError(error);
+      notifyListeners();
+      return null;
+    }
+  }
+
   void lock() {
     _periodicSyncTimer?.cancel();
     _debouncedSyncTimer?.cancel();
@@ -423,9 +475,15 @@ class VaultViewModel extends ChangeNotifier {
       return true;
     } catch (error) {
       _state = fallbackState;
-      _errorMessage = error.toString().replaceFirst('Exception: ', '');
+      _errorMessage = _readableError(error);
       notifyListeners();
       return false;
     }
   }
+
+  String _readableError(Object error) => error
+      .toString()
+      .replaceFirst('FormatException: ', '')
+      .replaceFirst('Bad state: ', '')
+      .replaceFirst('Exception: ', '');
 }

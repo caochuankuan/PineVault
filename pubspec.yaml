@@ -41,6 +41,8 @@ dependencies:
   sodium: ^3.4.6
   sodium_libs: ^3.4.6+4
   url_launcher: ^6.3.2
+  file_picker: ^12.2.0
+  kpasslib: ^1.1.2
 
 dev_dependencies:
   flutter_test:

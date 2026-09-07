@@ -5,6 +5,7 @@ import '../../domain/models/vault.dart';
 import '../../domain/models/vault_item.dart';
 import '../../domain/models/vault_group.dart';
 import '../../domain/models/webdav_configuration.dart';
+import '../models/kdbx_transfer_data.dart';
 import '../models/vault_envelope.dart';
 import '../serialization/vault_codec.dart';
 import '../services/crypto_service.dart';
@@ -215,6 +216,58 @@ class VaultRepository {
     );
     await _save(
       vault.copyWith(updatedAt: now, groups: [...vault.groups, group]),
+    );
+  }
+
+  Future<KdbxImportSummary> importKdbx(KdbxImportData data) async {
+    final vault = _requireVault();
+    final now = DateTime.now().toUtc();
+    final groups = [...vault.groups];
+    final groupIdsByName = <String, String>{
+      for (final group in groups) group.name: group.id,
+    };
+    var createdGroupCount = 0;
+    final items = [...vault.items];
+
+    for (final imported in data.entries) {
+      var groupId = groupIdsByName[imported.groupName];
+      if (groupId == null) {
+        groupId = _uuid.v4();
+        groups.add(
+          VaultGroup(
+            id: groupId,
+            name: imported.groupName,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        groupIdsByName[imported.groupName] = groupId;
+        createdGroupCount++;
+      }
+      items.add(
+        VaultItem(
+          id: _uuid.v4(),
+          groupId: groupId,
+          type: VaultItemType.login,
+          title: imported.title,
+          username: imported.username,
+          password: imported.password,
+          urls: imported.url.trim().isEmpty ? const [] : [imported.url.trim()],
+          notes: imported.notes,
+          favorite: imported.favorite,
+          createdAt: imported.createdAt,
+          updatedAt: imported.updatedAt,
+          revision: 1,
+        ),
+      );
+    }
+
+    if (data.entries.isNotEmpty) {
+      await _save(vault.copyWith(updatedAt: now, groups: groups, items: items));
+    }
+    return KdbxImportSummary(
+      itemCount: data.entries.length,
+      createdGroupCount: createdGroupCount,
     );
   }
 

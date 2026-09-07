@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -61,6 +62,22 @@ class VaultHomeScreen extends StatelessWidget {
                 enabled: !viewModel.busy,
                 child: const _MenuRow(icon: Icons.key_outlined, label: '修改主密码'),
               ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: _VaultMenuAction.importKdbx,
+                child: _MenuRow(
+                  icon: Icons.file_download_outlined,
+                  label: '导入 KDBX',
+                ),
+              ),
+              const PopupMenuItem(
+                value: _VaultMenuAction.exportKdbx,
+                child: _MenuRow(
+                  icon: Icons.file_upload_outlined,
+                  label: '导出 KDBX',
+                ),
+              ),
+              const PopupMenuDivider(),
               PopupMenuItem(
                 value: _VaultMenuAction.lock,
                 enabled: !viewModel.busy,
@@ -185,6 +202,8 @@ enum _VaultMenuAction {
   webDav,
   history,
   changeMasterPassword,
+  importKdbx,
+  exportKdbx,
   lock,
   togglePasswords,
   toggleWebsites,
@@ -239,6 +258,10 @@ Future<void> _handleMenu(BuildContext context, _VaultMenuAction action) async {
         backgroundColor: Colors.transparent,
         builder: (_) => const ChangeMasterPasswordDialog(),
       );
+    case _VaultMenuAction.importKdbx:
+      await _importKdbx(context, viewModel);
+    case _VaultMenuAction.exportKdbx:
+      await _exportKdbx(context, viewModel);
     case _VaultMenuAction.lock:
       viewModel.lock();
     case _VaultMenuAction.togglePasswords:
@@ -249,6 +272,251 @@ Future<void> _handleMenu(BuildContext context, _VaultMenuAction action) async {
       viewModel.setSortOrder(VaultSortOrder.time);
     case _VaultMenuAction.sortByName:
       viewModel.setSortOrder(VaultSortOrder.name);
+  }
+}
+
+Future<void> _importKdbx(BuildContext context, VaultViewModel viewModel) async {
+  PlatformFile? file;
+  try {
+    file = await FilePicker.pickFile(
+      dialogTitle: '选择 KDBX 密码库',
+      type: FileType.custom,
+      allowedExtensions: const ['kdbx'],
+    );
+  } catch (error) {
+    if (context.mounted) _showMessage(context, '无法选择文件：$error');
+    return;
+  }
+  if (file == null || !context.mounted) return;
+
+  final password = await showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _KdbxPasswordSheet.import(fileName: file!.name),
+  );
+  if (password == null || !context.mounted) return;
+
+  Uint8List bytes;
+  try {
+    bytes = await file.readAsBytes();
+  } catch (error) {
+    if (context.mounted) _showMessage(context, '无法读取 KDBX 文件：$error');
+    return;
+  }
+  final summary = await viewModel.importKdbx(bytes: bytes, password: password);
+  if (!context.mounted) return;
+  if (summary == null) {
+    _showMessage(context, viewModel.errorMessage ?? 'KDBX 导入失败');
+    return;
+  }
+  _showMessage(
+    context,
+    summary.itemCount == 0
+        ? 'KDBX 中没有可导入的密码条目'
+        : '已导入 ${summary.itemCount} 条密码，新增 ${summary.createdGroupCount} 个分组',
+  );
+}
+
+Future<void> _exportKdbx(BuildContext context, VaultViewModel viewModel) async {
+  final password = await showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => const _KdbxPasswordSheet.export(),
+  );
+  if (password == null || !context.mounted) return;
+
+  final bytes = await viewModel.exportKdbx(password);
+  if (bytes == null || !context.mounted) {
+    if (context.mounted) {
+      _showMessage(context, viewModel.errorMessage ?? 'KDBX 导出失败');
+    }
+    return;
+  }
+
+  final now = DateTime.now();
+  final fileName =
+      '松匣-${now.year}${_twoDigits(now.month)}${_twoDigits(now.day)}-'
+      '${_twoDigits(now.hour)}${_twoDigits(now.minute)}.kdbx';
+  try {
+    final saved = await FilePicker.saveFile(
+      dialogTitle: '导出 KDBX 密码库',
+      fileName: fileName,
+      bytes: bytes,
+      mimeType: 'application/x-keepass2',
+    );
+    if (saved != null && context.mounted) {
+      _showMessage(context, 'KDBX 已导出');
+    }
+  } catch (error) {
+    if (context.mounted) _showMessage(context, '无法保存 KDBX 文件：$error');
+  }
+}
+
+String _twoDigits(int value) => value.toString().padLeft(2, '0');
+
+void _showMessage(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
+}
+
+enum _KdbxPasswordMode { import, export }
+
+class _KdbxPasswordSheet extends StatefulWidget {
+  const _KdbxPasswordSheet.import({required this.fileName})
+    : mode = _KdbxPasswordMode.import;
+
+  const _KdbxPasswordSheet.export()
+    : mode = _KdbxPasswordMode.export,
+      fileName = null;
+
+  final _KdbxPasswordMode mode;
+  final String? fileName;
+
+  @override
+  State<_KdbxPasswordSheet> createState() => _KdbxPasswordSheetState();
+}
+
+class _KdbxPasswordSheetState extends State<_KdbxPasswordSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _password = TextEditingController();
+  final _confirmation = TextEditingController();
+  bool _obscurePassword = true;
+
+  bool get _isExport => widget.mode == _KdbxPasswordMode.export;
+
+  @override
+  void dispose() {
+    _password.dispose();
+    _confirmation.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Material(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        clipBehavior: Clip.antiAlias,
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    _isExport ? '导出 KDBX' : '导入 KDBX',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _isExport
+                        ? '设置此 KDBX 文件自己的主密码，与松匣主密码互不影响。'
+                        : '${widget.fileName}\n此密码只用于本次解密，不会保存到松匣。',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _password,
+                    autofocus: true,
+                    obscureText: _obscurePassword,
+                    textInputAction: _isExport
+                        ? TextInputAction.next
+                        : TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: _isExport ? '设置 KDBX 主密码' : 'KDBX 主密码',
+                      prefixIcon: const Icon(Icons.key_outlined),
+                      suffixIcon: IconButton(
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+                      ),
+                    ),
+                    validator: (value) {
+                      if ((value ?? '').isEmpty) return '请输入 KDBX 主密码';
+                      if (_isExport && value!.length < 8) {
+                        return 'KDBX 主密码至少需要 8 个字符';
+                      }
+                      return null;
+                    },
+                    onFieldSubmitted: _isExport ? null : (_) => _submit(),
+                  ),
+                  if (_isExport) ...[
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _confirmation,
+                      obscureText: true,
+                      textInputAction: TextInputAction.done,
+                      decoration: const InputDecoration(
+                        labelText: '确认 KDBX 主密码',
+                        prefixIcon: Icon(Icons.lock_outline),
+                      ),
+                      validator: (value) =>
+                          value != _password.text ? '两次输入的密码不一致' : null,
+                      onFieldSubmitted: (_) => _submit(),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('取消'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _submit,
+                          child: Text(_isExport ? '生成文件' : '开始导入'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _submit() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    Navigator.pop(context, _password.text);
   }
 }
 
