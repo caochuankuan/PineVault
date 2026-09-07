@@ -352,6 +352,13 @@ class _ItemViewer extends StatefulWidget {
 class _ItemViewerState extends State<_ItemViewer> {
   bool _obscurePassword = true;
   bool _busy = false;
+  OverlayEntry? _toastEntry;
+
+  @override
+  void dispose() {
+    _toastEntry?.remove();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -709,27 +716,58 @@ class _ItemViewerState extends State<_ItemViewer> {
   Future<void> _copy(String value, String label) async {
     await Clipboard.setData(ClipboardData(text: value));
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label已复制')));
+    _showToast('$label已复制');
   }
 
   Future<void> _openWebsite(String value) async {
-    final uri = Uri.tryParse(value);
-    if (uri == null || !uri.hasScheme) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('网站地址无效')));
-      }
+    final trimmed = value.trim();
+    final normalized = trimmed.contains('://') ? trimmed : 'https://$trimmed';
+    final uri = Uri.tryParse(normalized);
+    if (uri == null || uri.host.isEmpty) {
+      if (mounted) _showToast('网站地址无效');
       return;
     }
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('无法打开网站')));
+      _showToast('无法打开网站');
     }
+  }
+
+  void _showToast(String message) {
+    _toastEntry?.remove();
+    final entry = OverlayEntry(
+      builder: (_) => Positioned(
+        left: 24,
+        right: 24,
+        bottom: 92,
+        child: IgnorePointer(
+          child: Center(
+            child: Material(
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                child: Text(
+                  message,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    _toastEntry = entry;
+    Overlay.of(context).insert(entry);
+    Future<void>.delayed(const Duration(seconds: 2), () {
+      if (_toastEntry == entry) {
+        entry.remove();
+        _toastEntry = null;
+      }
+    });
   }
 
   Future<void> _delete() async {
