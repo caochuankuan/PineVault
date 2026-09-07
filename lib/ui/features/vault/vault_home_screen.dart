@@ -30,6 +30,12 @@ class VaultHomeScreen extends StatelessWidget {
             ),
           PopupMenuButton<_VaultMenuAction>(
             tooltip: '更多操作',
+            color: Theme.of(context).colorScheme.surface,
+            surfaceTintColor: Colors.transparent,
+            elevation: 5,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             onSelected: (action) => _handleMenu(context, action),
             itemBuilder: (_) => [
               PopupMenuItem(
