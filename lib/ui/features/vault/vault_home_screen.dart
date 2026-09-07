@@ -363,6 +363,7 @@ class _ItemViewerState extends State<_ItemViewer> {
       String value,
       IconData icon, {
       VoidCallback? onTap,
+      VoidCallback? onCopy,
     }) {
       final content = Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -382,9 +383,26 @@ class _ItemViewerState extends State<_ItemViewer> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(label, style: theme.textTheme.labelMedium),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(label, style: theme.textTheme.labelMedium),
+                          if (onCopy != null)
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 32,
+                                minHeight: 28,
+                              ),
+                              tooltip: '复制$label',
+                              onPressed: onCopy,
+                              icon: const Icon(Icons.copy_outlined, size: 17),
+                            ),
+                        ],
+                      ),
                       const SizedBox(height: 3),
-                      Text(
+                      SelectableText(
                         value.isEmpty ? '未设置' : value,
                         style: theme.textTheme.bodyLarge,
                       ),
@@ -483,6 +501,9 @@ class _ItemViewerState extends State<_ItemViewer> {
                         onTap: widget.item.username.isEmpty
                             ? null
                             : () => _copy(widget.item.username, '用户名'),
+                        onCopy: widget.item.username.isEmpty
+                            ? null
+                            : () => _copy(widget.item.username, '用户名'),
                       ),
                       GestureDetector(
                         onTap: widget.item.password.isEmpty
@@ -513,12 +534,38 @@ class _ItemViewerState extends State<_ItemViewer> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          '密码',
-                                          style: theme.textTheme.labelMedium,
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              '密码',
+                                              style:
+                                                  theme.textTheme.labelMedium,
+                                            ),
+                                            if (widget.item.password.isNotEmpty)
+                                              IconButton(
+                                                visualDensity:
+                                                    VisualDensity.compact,
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      minWidth: 32,
+                                                      minHeight: 28,
+                                                    ),
+                                                tooltip: '复制密码',
+                                                onPressed: () => _copy(
+                                                  widget.item.password,
+                                                  '密码',
+                                                ),
+                                                icon: const Icon(
+                                                  Icons.copy_outlined,
+                                                  size: 17,
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                         const SizedBox(height: 3),
-                                        Text(
+                                        SelectableText(
                                           password,
                                           style: theme.textTheme.bodyLarge,
                                         ),
