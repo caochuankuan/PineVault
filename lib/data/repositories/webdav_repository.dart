@@ -2,6 +2,16 @@ import '../../domain/models/webdav_configuration.dart';
 import '../services/webdav_credential_store.dart';
 import '../services/webdav_service.dart';
 
+class WebDavRestoreDownload {
+  const WebDavRestoreDownload({
+    required this.credentials,
+    required this.remoteFile,
+  });
+
+  final WebDavCredentials credentials;
+  final WebDavRemoteFile remoteFile;
+}
+
 class WebDavRepository {
   WebDavRepository({
     required WebDavCredentialStore credentialStore,
@@ -26,7 +36,6 @@ class WebDavRepository {
     required String serverUrl,
     required String username,
     required String password,
-    required String vaultId,
   }) async {
     final current = await _credentialStore.read();
     final normalizedPassword = password.isEmpty
@@ -45,9 +54,33 @@ class WebDavRepository {
     }
 
     await _service.testConnection(credentials);
-    await _service.ensureVaultDirectory(credentials, vaultId);
+    await _service.ensureVaultDirectory(credentials);
     await _credentialStore.write(credentials);
   }
+
+  Future<WebDavRestoreDownload> downloadForRestore({
+    required String serverUrl,
+    required String username,
+    required String password,
+  }) async {
+    final credentials = _credentials(
+      serverUrl: serverUrl,
+      username: username,
+      password: password,
+    );
+    await _service.testConnection(credentials);
+    final remoteFile = await _service.downloadVault(credentials);
+    if (remoteFile == null) {
+      throw const WebDavException('远端没有 PineVault 密码库');
+    }
+    return WebDavRestoreDownload(
+      credentials: credentials,
+      remoteFile: remoteFile,
+    );
+  }
+
+  Future<void> saveCredentials(WebDavCredentials credentials) =>
+      _credentialStore.write(credentials);
 
   Future<void> clearConfiguration() => _credentialStore.clear();
 
@@ -59,27 +92,44 @@ class WebDavRepository {
     return credentials;
   }
 
-  Future<void> ensureVaultDirectory(String vaultId) async {
-    await _service.ensureVaultDirectory(await requireCredentials(), vaultId);
+  Future<void> ensureVaultDirectory() async {
+    await _service.ensureVaultDirectory(await requireCredentials());
   }
 
-  Future<WebDavRemoteFile?> downloadVault(String vaultId) async {
-    return _service.downloadVault(await requireCredentials(), vaultId);
+  Future<WebDavRemoteFile?> downloadVault() async {
+    return _service.downloadVault(await requireCredentials());
   }
 
   Future<String?> uploadVault(
-    String vaultId,
     List<int> bytes, {
     String? expectedEtag,
     bool createOnly = false,
   }) async {
     return _service.uploadVault(
       await requireCredentials(),
-      vaultId,
       bytes,
       expectedEtag: expectedEtag,
       createOnly: createOnly,
     );
+  }
+
+  WebDavCredentials _credentials({
+    required String serverUrl,
+    required String username,
+    required String password,
+  }) {
+    final credentials = WebDavCredentials(
+      serverUri: _validateServerUri(serverUrl),
+      username: username.trim(),
+      password: password,
+    );
+    if (credentials.username.isEmpty) {
+      throw const FormatException('请输入坚果云账号');
+    }
+    if (credentials.password.isEmpty) {
+      throw const FormatException('请输入坚果云第三方应用密码');
+    }
+    return credentials;
   }
 
   Uri _validateServerUri(String value) {

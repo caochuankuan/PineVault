@@ -59,10 +59,15 @@ class _AppRouter extends StatelessWidget {
       builder: (context, viewModel, _) {
         return switch (viewModel.state) {
           VaultAppState.initializing => const _LoadingScreen(),
-          VaultAppState.noVault || VaultAppState.creating => SetupScreen(
-            busy: viewModel.state == VaultAppState.creating,
+          VaultAppState.noVault ||
+          VaultAppState.creating ||
+          VaultAppState.restoring => SetupScreen(
+            busy:
+                viewModel.state == VaultAppState.creating ||
+                viewModel.state == VaultAppState.restoring,
             errorMessage: viewModel.errorMessage,
             onCreate: viewModel.createVault,
+            onRestore: viewModel.restore,
           ),
           VaultAppState.locked || VaultAppState.unlocking => UnlockScreen(
             busy: viewModel.state == VaultAppState.unlocking,

@@ -45,13 +45,12 @@ void main() {
       }),
     );
 
-    await service.ensureVaultDirectory(credentials, 'vault id');
+    await service.ensureVaultDirectory(credentials);
 
     expect(requests.map((request) => request.method), everyElement('MKCOL'));
     expect(requests.map((request) => request.url.toString()), [
       'https://dav.example.test/dav/Apps/',
       'https://dav.example.test/dav/Apps/PineVault/',
-      'https://dav.example.test/dav/Apps/PineVault/vault%20id/',
     ]);
   });
 
@@ -64,14 +63,14 @@ void main() {
       }),
     );
 
-    final etag = await service.uploadVault(credentials, 'vault-id', [
+    final etag = await service.uploadVault(credentials, [
       1,
       2,
       3,
     ], expectedEtag: '"old"');
 
     expect(captured.method, 'PUT');
-    expect(captured.url.path, '/dav/Apps/PineVault/vault-id/vault.pvlt');
+    expect(captured.url.path, '/dav/Apps/PineVault/vault.pvlt');
     expect(captured.headers['if-match'], '"old"');
     expect(captured.bodyBytes, [1, 2, 3]);
     expect(etag, '"new"');
@@ -88,7 +87,7 @@ void main() {
       ),
     );
 
-    final remote = await service.downloadVault(credentials, 'vault-id');
+    final remote = await service.downloadVault(credentials);
 
     expect(remote?.bytes, [4, 5, 6]);
     expect(remote?.etag, '"remote"');

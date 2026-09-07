@@ -14,6 +14,7 @@ import 'package:pine_vault/data/services/vault_file_service.dart';
 import 'package:pine_vault/data/services/webdav_credential_store.dart';
 import 'package:pine_vault/data/services/webdav_service.dart';
 import 'package:pine_vault/domain/models/webdav_configuration.dart';
+import 'package:pine_vault/domain/use_cases/restore_vault_use_case.dart';
 import 'package:pine_vault/domain/use_cases/sync_vault_use_case.dart';
 import 'package:pine_vault/domain/use_cases/vault_merge_service.dart';
 import 'package:sodium_libs/sodium_libs_sumo.dart';
@@ -28,9 +29,17 @@ void main() {
     final remoteRoot = await Directory.systemTemp.createTemp(
       'pine_sync_remote_',
     );
+    final restoredRoot = await Directory.systemTemp.createTemp(
+      'pine_sync_restored_',
+    );
+    final rejectedRoot = await Directory.systemTemp.createTemp(
+      'pine_sync_rejected_',
+    );
     addTearDown(() async {
       await root.delete(recursive: true);
       await remoteRoot.delete(recursive: true);
+      await restoredRoot.delete(recursive: true);
+      await rejectedRoot.delete(recursive: true);
     });
     final sodium = await SodiumSumoInit.init();
     const codec = VaultCodec();
@@ -54,6 +63,7 @@ void main() {
           headers: {'etag': '"$etagVersion"'},
         );
       }
+      if (request.method == 'PROPFIND') return http.Response('', 207);
       if (request.method == 'MKCOL') return http.Response('', 405);
       if (request.method == 'PUT') {
         if (remoteBytes == null) {
@@ -95,6 +105,60 @@ void main() {
     final first = await sync();
     expect(first.outcome, VaultSyncOutcome.uploaded);
     expect(utf8.decode(remoteBytes!), isNot(contains('initial-password')));
+
+    final restoredRepository = VaultRepository(
+      cryptoService: crypto,
+      fileService: VaultFileService(
+        directoryProvider: () async => restoredRoot,
+      ),
+      codec: codec,
+    );
+    addTearDown(restoredRepository.lock);
+    final restore = RestoreVaultUseCase(
+      vaultRepository: restoredRepository,
+      webDavRepository: webDavRepository,
+      stateService: SyncStateService(
+        directoryProvider: () async => restoredRoot,
+      ),
+    );
+    await restore(
+      serverUrl: 'https://dav.example.test/dav/',
+      username: 'integration@example.com',
+      applicationPassword: 'application-password',
+      masterPassword: masterPassword,
+    );
+    expect(restoredRepository.vault!.items.single.title, 'Account');
+    expect(restoredRepository.vault!.items.single.password, 'initial-password');
+
+    final emptyStore = _MemoryCredentialStore.empty();
+    final rejectedRepository = VaultRepository(
+      cryptoService: crypto,
+      fileService: VaultFileService(
+        directoryProvider: () async => rejectedRoot,
+      ),
+      codec: codec,
+    );
+    final rejectedRestore = RestoreVaultUseCase(
+      vaultRepository: rejectedRepository,
+      webDavRepository: WebDavRepository(
+        credentialStore: emptyStore,
+        service: WebDavService(client: client),
+      ),
+      stateService: SyncStateService(
+        directoryProvider: () async => rejectedRoot,
+      ),
+    );
+    await expectLater(
+      rejectedRestore(
+        serverUrl: 'https://dav.example.test/dav/',
+        username: 'integration@example.com',
+        applicationPassword: 'application-password',
+        masterPassword: 'wrong master password',
+      ),
+      throwsA(isA<VaultUnlockException>()),
+    );
+    expect(await rejectedRepository.hasVault(), isFalse);
+    expect(emptyStore.credentials, isNull);
 
     final remoteFileService = VaultFileService(
       directoryProvider: () async => remoteRoot,
@@ -148,11 +212,16 @@ void main() {
 }
 
 class _MemoryCredentialStore implements WebDavCredentialStore {
-  WebDavCredentials? credentials = WebDavCredentials(
-    serverUri: Uri.parse('https://dav.example.test/dav/'),
-    username: 'integration@example.com',
-    password: 'application-password',
-  );
+  _MemoryCredentialStore()
+    : credentials = WebDavCredentials(
+        serverUri: Uri.parse('https://dav.example.test/dav/'),
+        username: 'integration@example.com',
+        password: 'application-password',
+      );
+
+  _MemoryCredentialStore.empty();
+
+  WebDavCredentials? credentials;
 
   @override
   Future<void> clear() async => credentials = null;

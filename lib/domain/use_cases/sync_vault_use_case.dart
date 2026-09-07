@@ -36,13 +36,12 @@ class SyncVaultUseCase {
     final local = _vaultRepository.vault;
     if (local == null) throw StateError('密码库尚未解锁');
     final state = await _stateService.read(local.id);
-    final remoteFile = await _webDavRepository.downloadVault(local.id);
+    final remoteFile = await _webDavRepository.downloadVault();
 
     if (remoteFile == null) {
-      await _webDavRepository.ensureVaultDirectory(local.id);
+      await _webDavRepository.ensureVaultDirectory();
       final encoded = _vaultRepository.exportEncryptedVault();
       final etag = await _webDavRepository.uploadVault(
-        local.id,
         utf8.encode(encoded),
         createOnly: true,
       );
@@ -76,7 +75,6 @@ class SyncVaultUseCase {
       }
       final encoded = _vaultRepository.encryptVaultForExport(merged.vault);
       etag = await _webDavRepository.uploadVault(
-        local.id,
         utf8.encode(encoded),
         expectedEtag: etag,
       );

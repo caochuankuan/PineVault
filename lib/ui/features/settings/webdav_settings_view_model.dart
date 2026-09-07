@@ -37,7 +37,6 @@ class WebDavSettingsViewModel extends ChangeNotifier {
     required String serverUrl,
     required String username,
     required String password,
-    required String vaultId,
   }) async {
     _state = WebDavSettingsState.testing;
     _errorMessage = null;
@@ -47,7 +46,6 @@ class WebDavSettingsViewModel extends ChangeNotifier {
         serverUrl: serverUrl,
         username: username,
         password: password,
-        vaultId: vaultId,
       );
       _configuration = await _repository.loadConfiguration();
       return true;

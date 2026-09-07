@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/vault_brand.dart';
+import 'restore_screen.dart';
 
 typedef CreateVaultCallback = Future<void> Function(String masterPassword);
 
@@ -9,12 +10,14 @@ class SetupScreen extends StatefulWidget {
     super.key,
     required this.busy,
     required this.onCreate,
+    required this.onRestore,
     this.errorMessage,
   });
 
   final bool busy;
   final String? errorMessage;
   final CreateVaultCallback onCreate;
+  final RestoreVaultCallback onRestore;
 
   @override
   State<SetupScreen> createState() => _SetupScreenState();
@@ -125,6 +128,13 @@ class _SetupScreenState extends State<SetupScreen> {
                           : const Icon(Icons.lock_outline),
                       label: Text(widget.busy ? '正在创建…' : '创建密码库'),
                     ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      key: const Key('open-restore'),
+                      onPressed: widget.busy ? null : _openRestore,
+                      icon: const Icon(Icons.cloud_download_outlined),
+                      label: const Text('从坚果云恢复'),
+                    ),
                   ],
                 ),
               ),
@@ -138,5 +148,14 @@ class _SetupScreenState extends State<SetupScreen> {
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     await widget.onCreate(_passwordController.text);
+  }
+
+  Future<void> _openRestore() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RestoreScreen(onRestore: widget.onRestore),
+      ),
+    );
   }
 }

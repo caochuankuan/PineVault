@@ -43,14 +43,10 @@ class WebDavService {
     _requireStatus(response, const {200, 207});
   }
 
-  Future<void> ensureVaultDirectory(
-    WebDavCredentials credentials,
-    String vaultId,
-  ) async {
+  Future<void> ensureVaultDirectory(WebDavCredentials credentials) async {
     for (final segments in [
       const ['Apps'],
       const ['Apps', 'PineVault'],
-      ['Apps', 'PineVault', vaultId],
     ]) {
       final response = await _send(
         method: 'MKCOL',
@@ -62,13 +58,10 @@ class WebDavService {
     }
   }
 
-  Future<WebDavRemoteFile?> downloadVault(
-    WebDavCredentials credentials,
-    String vaultId,
-  ) async {
+  Future<WebDavRemoteFile?> downloadVault(WebDavCredentials credentials) async {
     final response = await _send(
       method: 'GET',
-      uri: _vaultUri(credentials.serverUri, vaultId),
+      uri: _vaultUri(credentials.serverUri),
       credentials: credentials,
     );
     if (response.statusCode == 404) {
@@ -87,7 +80,6 @@ class WebDavService {
 
   Future<String?> uploadVault(
     WebDavCredentials credentials,
-    String vaultId,
     List<int> bytes, {
     String? expectedEtag,
     bool createOnly = false,
@@ -101,7 +93,7 @@ class WebDavService {
     if (createOnly) headers[HttpHeaders.ifNoneMatchHeader] = '*';
     final response = await _send(
       method: 'PUT',
-      uri: _vaultUri(credentials.serverUri, vaultId),
+      uri: _vaultUri(credentials.serverUri),
       credentials: credentials,
       headers: headers,
       body: bytes,
@@ -137,8 +129,8 @@ class WebDavService {
     }
   }
 
-  Uri _vaultUri(Uri baseUri, String vaultId) =>
-      _resolve(baseUri, ['Apps', 'PineVault', vaultId, 'vault.pvlt']);
+  Uri _vaultUri(Uri baseUri) =>
+      _resolve(baseUri, const ['Apps', 'PineVault', 'vault.pvlt']);
 
   Uri _resolve(Uri baseUri, List<String> extra, {bool directory = false}) {
     final baseSegments = baseUri.pathSegments

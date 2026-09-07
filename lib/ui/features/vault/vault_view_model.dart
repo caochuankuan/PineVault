@@ -3,11 +3,13 @@ import 'package:flutter/foundation.dart';
 import '../../../data/repositories/vault_repository.dart';
 import '../../../domain/models/vault_item.dart';
 import '../../../domain/use_cases/sync_vault_use_case.dart';
+import '../../../domain/use_cases/restore_vault_use_case.dart';
 
 enum VaultAppState {
   initializing,
   noVault,
   creating,
+  restoring,
   locked,
   unlocking,
   unlocked,
@@ -19,11 +21,14 @@ class VaultViewModel extends ChangeNotifier {
   VaultViewModel({
     required VaultRepository repository,
     required SyncVaultUseCase syncVault,
+    required RestoreVaultUseCase restoreVault,
   }) : _repository = repository,
-       _syncVault = syncVault;
+       _syncVault = syncVault,
+       _restoreVault = restoreVault;
 
   final VaultRepository _repository;
   final SyncVaultUseCase _syncVault;
+  final RestoreVaultUseCase _restoreVault;
   VaultAppState _state = VaultAppState.initializing;
   String? _errorMessage;
   String? _syncMessage;
@@ -33,7 +38,6 @@ class VaultViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get syncMessage => _syncMessage;
   String get query => _query;
-  String? get vaultId => _repository.vault?.id;
   bool get busy =>
       _state == VaultAppState.saving || _state == VaultAppState.syncing;
 
@@ -75,6 +79,36 @@ class VaultViewModel extends ChangeNotifier {
     fallbackState: VaultAppState.locked,
     operation: () => _repository.unlock(masterPassword),
   );
+
+  Future<String?> restore({
+    required String serverUrl,
+    required String username,
+    required String applicationPassword,
+    required String masterPassword,
+  }) async {
+    _state = VaultAppState.restoring;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _restoreVault(
+        serverUrl: serverUrl,
+        username: username,
+        applicationPassword: applicationPassword,
+        masterPassword: masterPassword,
+      );
+      _state = VaultAppState.unlocked;
+      notifyListeners();
+      return null;
+    } catch (error) {
+      _state = VaultAppState.noVault;
+      _errorMessage = error
+          .toString()
+          .replaceFirst('FormatException: ', '')
+          .replaceFirst('Bad state: ', '');
+      notifyListeners();
+      return _errorMessage;
+    }
+  }
 
   Future<bool> saveItem({
     VaultItem? existing,

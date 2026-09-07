@@ -73,6 +73,39 @@ class VaultRepository {
 
   Future<bool> hasVault() => _fileService.exists();
 
+  String validateRestore(String masterPassword, String encoded) {
+    final envelope = _codec.decodeEnvelope(encoded);
+    final unlocked = _cryptoService.unlock(
+      masterPassword: masterPassword,
+      envelope: envelope,
+    );
+    try {
+      return unlocked.vault.id;
+    } finally {
+      unlocked.key.dispose();
+    }
+  }
+
+  Future<void> restore(String masterPassword, String encoded) async {
+    if (await hasVault()) throw StateError('本机已经存在密码库');
+    final envelope = _codec.decodeEnvelope(encoded);
+    final unlocked = _cryptoService.unlock(
+      masterPassword: masterPassword,
+      envelope: envelope,
+    );
+    try {
+      await _fileService.write(encoded);
+    } catch (_) {
+      unlocked.key.dispose();
+      rethrow;
+    }
+    _replaceSession(
+      vault: unlocked.vault,
+      envelope: unlocked.envelope,
+      key: unlocked.key,
+    );
+  }
+
   Future<void> create(String masterPassword) async {
     final now = DateTime.now().toUtc();
     final vault = Vault(

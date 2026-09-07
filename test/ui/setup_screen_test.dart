@@ -12,6 +12,13 @@ void main() {
         home: SetupScreen(
           busy: false,
           onCreate: (password) async => submittedPassword = password,
+          onRestore:
+              ({
+                required serverUrl,
+                required username,
+                required applicationPassword,
+                required masterPassword,
+              }) async => null,
         ),
       ),
     );

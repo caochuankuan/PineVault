@@ -31,13 +31,12 @@ class VaultHomeScreen extends StatelessWidget {
           ),
           IconButton(
             tooltip: 'WebDAV 设置',
-            onPressed: viewModel.busy || viewModel.vaultId == null
+            onPressed: viewModel.busy
                 ? null
                 : () => Navigator.push<void>(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          WebDavSettingsScreen(vaultId: viewModel.vaultId!),
+                      builder: (_) => const WebDavSettingsScreen(),
                     ),
                   ),
             icon: const Icon(Icons.cloud_sync_outlined),

@@ -4,9 +4,7 @@ import 'package:provider/provider.dart';
 import 'webdav_settings_view_model.dart';
 
 class WebDavSettingsScreen extends StatefulWidget {
-  const WebDavSettingsScreen({super.key, required this.vaultId});
-
-  final String vaultId;
+  const WebDavSettingsScreen({super.key});
 
   @override
   State<WebDavSettingsScreen> createState() => _WebDavSettingsScreenState();
@@ -185,7 +183,6 @@ class _WebDavSettingsScreenState extends State<WebDavSettingsScreen> {
       serverUrl: _serverController.text,
       username: _usernameController.text,
       password: _passwordController.text,
-      vaultId: widget.vaultId,
     );
     if (!mounted || !succeeded) return;
     _passwordController.clear();

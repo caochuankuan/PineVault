@@ -24,7 +24,6 @@ void main() {
       serverUrl: 'https://dav.example.test/dav',
       username: ' person@example.com ',
       password: 'application-password',
-      vaultId: 'vault-id',
     );
 
     expect(
@@ -35,7 +34,6 @@ void main() {
     expect(store.credentials?.password, 'application-password');
     expect(requests.map((request) => request.method), [
       'PROPFIND',
-      'MKCOL',
       'MKCOL',
       'MKCOL',
     ]);
@@ -62,7 +60,6 @@ void main() {
           serverUrl: 'https://dav.example.test/dav/',
           username: 'new@example.com',
           password: 'new-password',
-          vaultId: 'vault-id',
         ),
         throwsA(isA<WebDavException>()),
       );
@@ -83,7 +80,6 @@ void main() {
         serverUrl: 'http://dav.example.test/dav/',
         username: 'person@example.com',
         password: 'application-password',
-        vaultId: 'vault-id',
       ),
       throwsA(isA<FormatException>()),
     );
