@@ -481,6 +481,10 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
                           value: _favorite,
                           title: const Text('收藏此条目'),
                           secondary: const Icon(Icons.star_outline),
+                          hoverColor: Colors.transparent,
+                          overlayColor: const WidgetStatePropertyAll(
+                            Colors.transparent,
+                          ),
                           onChanged: _busy
                               ? null
                               : (value) => setState(() => _favorite = value),
