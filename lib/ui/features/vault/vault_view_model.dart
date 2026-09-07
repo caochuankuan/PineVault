@@ -21,6 +21,8 @@ enum VaultAppState {
   syncing,
 }
 
+enum VaultSortOrder { name, time }
+
 class VaultViewModel extends ChangeNotifier {
   VaultViewModel({
     required VaultRepository repository,
@@ -46,6 +48,8 @@ class VaultViewModel extends ChangeNotifier {
   Timer? _periodicSyncTimer;
   Timer? _debouncedSyncTimer;
   String _query = '';
+  bool _showPasswords = false;
+  VaultSortOrder _sortOrder = VaultSortOrder.name;
 
   VaultAppState get state => _state;
   String? get errorMessage => _errorMessage;
@@ -54,6 +58,8 @@ class VaultViewModel extends ChangeNotifier {
   bool get webDavConflict => _webDavConflict;
   List<SyncHistoryEntry> get syncHistory => _syncHistory;
   String get query => _query;
+  bool get showPasswords => _showPasswords;
+  VaultSortOrder get sortOrder => _sortOrder;
   bool get busy =>
       _state == VaultAppState.saving || _state == VaultAppState.syncing;
 
@@ -72,9 +78,23 @@ class VaultViewModel extends ChangeNotifier {
     final result = filtered.toList(growable: false);
     result.sort((a, b) {
       if (a.favorite != b.favorite) return a.favorite ? -1 : 1;
-      return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      return _sortOrder == VaultSortOrder.time
+          ? b.updatedAt.compareTo(a.updatedAt)
+          : a.title.toLowerCase().compareTo(b.title.toLowerCase());
     });
     return result;
+  }
+
+  void setShowPasswords(bool value) {
+    if (_showPasswords == value) return;
+    _showPasswords = value;
+    notifyListeners();
+  }
+
+  void setSortOrder(VaultSortOrder value) {
+    if (_sortOrder == value) return;
+    _sortOrder = value;
+    notifyListeners();
   }
 
   Future<void> initialize() async {

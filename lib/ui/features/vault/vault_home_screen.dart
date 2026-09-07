@@ -65,6 +65,32 @@ class VaultHomeScreen extends StatelessWidget {
                 enabled: !viewModel.busy,
                 child: const _MenuRow(icon: Icons.lock_outline, label: '锁定'),
               ),
+              PopupMenuItem(
+                value: _VaultMenuAction.togglePasswords,
+                child: _MenuRow(
+                  icon: viewModel.showPasswords
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  label: viewModel.showPasswords ? '隐藏密码' : '展示密码',
+                  active: viewModel.showPasswords,
+                ),
+              ),
+              PopupMenuItem(
+                value: _VaultMenuAction.sortByTime,
+                child: _MenuRow(
+                  icon: Icons.schedule_outlined,
+                  label: '按时间排序',
+                  active: viewModel.sortOrder == VaultSortOrder.time,
+                ),
+              ),
+              PopupMenuItem(
+                value: _VaultMenuAction.sortByName,
+                child: _MenuRow(
+                  icon: Icons.sort_by_alpha,
+                  label: '按名称排序',
+                  active: viewModel.sortOrder == VaultSortOrder.name,
+                ),
+              ),
             ],
           ),
         ],
@@ -131,17 +157,38 @@ class VaultHomeScreen extends StatelessWidget {
   }
 }
 
-enum _VaultMenuAction { sync, webDav, history, changeMasterPassword, lock }
+enum _VaultMenuAction {
+  sync,
+  webDav,
+  history,
+  changeMasterPassword,
+  lock,
+  togglePasswords,
+  sortByTime,
+  sortByName,
+}
 
 class _MenuRow extends StatelessWidget {
-  const _MenuRow({required this.icon, required this.label});
+  const _MenuRow({
+    required this.icon,
+    required this.label,
+    this.active = false,
+  });
 
   final IconData icon;
   final String label;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [Icon(icon), const SizedBox(width: 12), Text(label)]);
+    final color = active ? Theme.of(context).colorScheme.primary : null;
+    return Row(
+      children: [
+        Icon(icon, color: color),
+        const SizedBox(width: 12),
+        Text(label, style: color == null ? null : TextStyle(color: color)),
+      ],
+    );
   }
 }
 
@@ -170,6 +217,12 @@ Future<void> _handleMenu(BuildContext context, _VaultMenuAction action) async {
       );
     case _VaultMenuAction.lock:
       viewModel.lock();
+    case _VaultMenuAction.togglePasswords:
+      viewModel.setShowPasswords(!viewModel.showPasswords);
+    case _VaultMenuAction.sortByTime:
+      viewModel.setSortOrder(VaultSortOrder.time);
+    case _VaultMenuAction.sortByName:
+      viewModel.setSortOrder(VaultSortOrder.name);
   }
 }
 
@@ -246,11 +299,37 @@ class _VaultList extends StatelessWidget {
                         ),
                       ),
                       title: Text(item.title),
-                      subtitle: Text(
-                        item.username.isEmpty ? '未设置用户名' : item.username,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      subtitle: viewModel.showPasswords
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.username.isEmpty
+                                      ? '未设置用户名'
+                                      : item.username,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (item.urls.isNotEmpty)
+                                  Text(
+                                    item.urls.first,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                Text(
+                                  item.password.isEmpty
+                                      ? '未设置密码'
+                                      : item.password,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            )
+                          : Text(
+                              item.username.isEmpty ? '未设置用户名' : item.username,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                       trailing: item.favorite
                           ? const Icon(Icons.star, color: Colors.amber)
                           : null,
