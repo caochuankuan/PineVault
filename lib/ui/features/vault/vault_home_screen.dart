@@ -364,6 +364,7 @@ class _ItemViewerState extends State<_ItemViewer> {
       IconData icon, {
       VoidCallback? onTap,
       VoidCallback? onCopy,
+      VoidCallback? onOpen,
     }) {
       final content = Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -398,6 +399,21 @@ class _ItemViewerState extends State<_ItemViewer> {
                               tooltip: '复制$label',
                               onPressed: onCopy,
                               icon: const Icon(Icons.copy_outlined, size: 17),
+                            ),
+                          if (onOpen != null)
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 32,
+                                minHeight: 28,
+                              ),
+                              tooltip: '打开$label',
+                              onPressed: onOpen,
+                              icon: const Icon(
+                                Icons.open_in_new_outlined,
+                                size: 17,
+                              ),
                             ),
                         ],
                       ),
@@ -600,6 +616,9 @@ class _ItemViewerState extends State<_ItemViewer> {
                         onCopy: widget.item.urls.isEmpty
                             ? null
                             : () => _copy(widget.item.urls.first, '网站'),
+                        onOpen: widget.item.urls.isEmpty
+                            ? null
+                            : () => _openWebsite(widget.item.urls.first),
                       ),
                       if (widget.item.notes.isNotEmpty)
                         valueRow('备注', widget.item.notes, Icons.notes_outlined),
