@@ -430,20 +430,26 @@ class _ItemViewerState extends State<_ItemViewer> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      widget.item.title,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            widget.item.title,
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (widget.item.favorite)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 8),
+                            child: Icon(Icons.star, color: Colors.amber),
+                          ),
+                      ],
                     ),
                   ),
-                  if (widget.item.favorite)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: Icon(Icons.star, color: Colors.amber),
-                    ),
                   if (compact)
                     IconButton(
                       tooltip: '关闭',
