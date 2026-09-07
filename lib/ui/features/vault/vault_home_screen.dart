@@ -397,6 +397,12 @@ class _ItemViewerState extends State<_ItemViewer> {
 
     return Material(
       color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: compact
+            ? const BorderRadius.vertical(top: Radius.circular(28))
+            : BorderRadius.circular(28),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: SafeArea(
         top: false,
         child: Padding(
@@ -527,43 +533,63 @@ class _ItemViewerState extends State<_ItemViewer> {
                 ),
               ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  TextButton.icon(
-                    onPressed: _busy ? null : _delete,
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('删除'),
-                  ),
-                  const Spacer(),
-                  if (!compact)
+              if (compact)
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                        ),
+                        onPressed: _busy ? null : _delete,
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('删除', softWrap: false),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                        ),
+                        onPressed: _busy ? null : () => Navigator.pop(context),
+                        child: const Text('关闭', softWrap: false),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                        ),
+                        onPressed: _busy ? null : _edit,
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        label: const Text('编辑', softWrap: false),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    TextButton.icon(
+                      onPressed: _busy ? null : _delete,
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('删除'),
+                    ),
+                    const Spacer(),
                     OutlinedButton(
                       onPressed: _busy ? null : () => Navigator.pop(context),
                       child: const Text('关闭'),
                     ),
-                  if (compact)
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _busy ? null : () => Navigator.pop(context),
-                        child: const Text('关闭'),
-                      ),
-                    ),
-                  const SizedBox(width: 10),
-                  if (compact)
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _busy ? null : _edit,
-                        icon: const Icon(Icons.edit_outlined),
-                        label: const Text('编辑'),
-                      ),
-                    )
-                  else
+                    const SizedBox(width: 10),
                     FilledButton.icon(
                       onPressed: _busy ? null : _edit,
                       icon: const Icon(Icons.edit_outlined),
                       label: const Text('编辑'),
                     ),
-                ],
-              ),
+                  ],
+                ),
             ],
           ),
         ),
@@ -671,6 +697,12 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
 
     return Material(
       color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: compact
+            ? const BorderRadius.vertical(top: Radius.circular(28))
+            : BorderRadius.circular(28),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: SafeArea(
         top: false,
         child: Padding(
