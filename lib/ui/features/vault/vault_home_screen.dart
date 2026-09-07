@@ -396,7 +396,7 @@ Future<void> _showItemActions(BuildContext context, VaultItem item) async {
     showDragHandle: true,
     builder: (context) => SafeArea(
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(bottom: 40),
         child: Wrap(
           children: [
             ListTile(
