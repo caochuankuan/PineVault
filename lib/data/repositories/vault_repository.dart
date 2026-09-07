@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/models/vault.dart';
 import '../../domain/models/vault_item.dart';
+import '../../domain/models/webdav_configuration.dart';
 import '../models/vault_envelope.dart';
 import '../serialization/vault_codec.dart';
 import '../services/crypto_service.dart';
@@ -199,6 +200,26 @@ class VaultRepository {
         updatedAt: DateTime.now().toUtc(),
         items: items,
         tombstones: tombstones,
+      ),
+    );
+  }
+
+  Future<void> saveWebDavCredentials(WebDavCredentials credentials) async {
+    final vault = _requireVault();
+    await _save(
+      vault.copyWith(
+        updatedAt: DateTime.now().toUtc(),
+        webDavCredentials: credentials,
+      ),
+    );
+  }
+
+  Future<void> clearWebDavCredentials() async {
+    final vault = _requireVault();
+    await _save(
+      vault.copyWith(
+        updatedAt: DateTime.now().toUtc(),
+        clearWebDavCredentials: true,
       ),
     );
   }

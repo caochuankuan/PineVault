@@ -114,9 +114,13 @@ void main() {
       codec: codec,
     );
     addTearDown(restoredRepository.lock);
+    final restoredWebDavRepository = WebDavRepository(
+      credentialStore: VaultWebDavCredentialStore(restoredRepository),
+      service: WebDavService(client: client),
+    );
     final restore = RestoreVaultUseCase(
       vaultRepository: restoredRepository,
-      webDavRepository: webDavRepository,
+      webDavRepository: restoredWebDavRepository,
       stateService: SyncStateService(
         directoryProvider: () async => restoredRoot,
       ),
@@ -129,6 +133,21 @@ void main() {
     );
     expect(restoredRepository.vault!.items.single.title, 'Account');
     expect(restoredRepository.vault!.items.single.password, 'initial-password');
+    expect(
+      restoredRepository.vault!.webDavCredentials?.password,
+      'application-password',
+    );
+    final restoredFile = File('${restoredRoot.path}/PineVault/vault.pvlt');
+    expect(
+      await restoredFile.readAsString(),
+      isNot(contains('application-password')),
+    );
+    restoredRepository.lock();
+    await restoredRepository.unlock(masterPassword);
+    expect(
+      (await restoredWebDavRepository.loadConfiguration())?.username,
+      'integration@example.com',
+    );
 
     final emptyStore = _MemoryCredentialStore.empty();
     final rejectedRepository = VaultRepository(

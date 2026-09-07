@@ -1,0 +1,23 @@
+PODS:
+  - FlutterMacOS (1.0.0)
+  - "sodium_libs (3.4.6+4)":
+    - Flutter
+    - FlutterMacOS
+
+DEPENDENCIES:
+  - FlutterMacOS (from `Flutter/ephemeral`)
+  - sodium_libs (from `Flutter/ephemeral/.symlinks/plugins/sodium_libs/darwin`)
+
+EXTERNAL SOURCES:
+  FlutterMacOS:
+    :path: Flutter/ephemeral
+  sodium_libs:
+    :path: Flutter/ephemeral/.symlinks/plugins/sodium_libs/darwin
+
+SPEC CHECKSUMS:
+  FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
+  sodium_libs: 650f802d77b08c737ca4fed4ed68e822fa560c5a
+
+PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009
+
+COCOAPODS: 1.17.0

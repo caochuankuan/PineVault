@@ -32,11 +32,14 @@ class RestoreVaultUseCase {
     final encoded = utf8.decode(download.remoteFile.bytes);
     final vaultId = _vaultRepository.validateRestore(masterPassword, encoded);
 
+    await _vaultRepository.restore(masterPassword, encoded);
+    await _webDavRepository.saveCredentials(download.credentials);
     await _stateService.write(
       vaultId,
-      SyncState(baseEnvelope: encoded, etag: download.remoteFile.etag),
+      SyncState(
+        baseEnvelope: _vaultRepository.exportEncryptedVault(),
+        etag: download.remoteFile.etag,
+      ),
     );
-    await _webDavRepository.saveCredentials(download.credentials);
-    await _vaultRepository.restore(masterPassword, encoded);
   }
 }

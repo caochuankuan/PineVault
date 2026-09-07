@@ -1,4 +1,5 @@
 import 'vault_item.dart';
+import 'webdav_configuration.dart';
 
 class Vault {
   const Vault({
@@ -8,6 +9,7 @@ class Vault {
     required this.updatedAt,
     required this.items,
     required this.tombstones,
+    this.webDavCredentials,
   });
 
   final String id;
@@ -16,6 +18,7 @@ class Vault {
   final DateTime updatedAt;
   final List<VaultItem> items;
   final List<String> tombstones;
+  final WebDavCredentials? webDavCredentials;
 
   factory Vault.fromJson(Map<String, dynamic> json) {
     return switch (json) {
@@ -38,6 +41,7 @@ class Vault {
             ),
           ),
           tombstones: List.unmodifiable(tombstones.cast<String>()),
+          webDavCredentials: _webDavCredentials(json['webDav']),
         ),
       _ => throw const FormatException('Invalid vault.'),
     };
@@ -50,12 +54,20 @@ class Vault {
     'updatedAt': updatedAt.toUtc().toIso8601String(),
     'items': items.map((item) => item.toJson()).toList(growable: false),
     'tombstones': tombstones,
+    if (webDavCredentials case final credentials?)
+      'webDav': {
+        'serverUrl': credentials.serverUri.toString(),
+        'username': credentials.username,
+        'password': credentials.password,
+      },
   };
 
   Vault copyWith({
     DateTime? updatedAt,
     List<VaultItem>? items,
     List<String>? tombstones,
+    WebDavCredentials? webDavCredentials,
+    bool clearWebDavCredentials = false,
   }) {
     return Vault(
       id: id,
@@ -64,6 +76,26 @@ class Vault {
       updatedAt: updatedAt ?? this.updatedAt,
       items: List.unmodifiable(items ?? this.items),
       tombstones: List.unmodifiable(tombstones ?? this.tombstones),
+      webDavCredentials: clearWebDavCredentials
+          ? null
+          : webDavCredentials ?? this.webDavCredentials,
     );
+  }
+
+  static WebDavCredentials? _webDavCredentials(Object? value) {
+    return switch (value) {
+      null => null,
+      {
+        'serverUrl': final String serverUrl,
+        'username': final String username,
+        'password': final String password,
+      } =>
+        WebDavCredentials(
+          serverUri: Uri.parse(serverUrl),
+          username: username,
+          password: password,
+        ),
+      _ => throw const FormatException('Invalid WebDAV configuration.'),
+    };
   }
 }

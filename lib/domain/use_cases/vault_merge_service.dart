@@ -73,6 +73,7 @@ class VaultMergeService {
         updatedAt: DateTime.now().toUtc(),
         items: List.unmodifiable(items),
         tombstones: List.unmodifiable(sortedTombstones),
+        webDavCredentials: local.webDavCredentials ?? remote.webDavCredentials,
       ),
       conflictCount: conflicts,
     );

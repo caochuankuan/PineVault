@@ -32,7 +32,7 @@ class AppDependencies {
       codec: codec,
     );
     final webDavRepository = WebDavRepository(
-      credentialStore: SecureWebDavCredentialStore(),
+      credentialStore: VaultWebDavCredentialStore(repository),
       service: WebDavService(),
     );
     final syncStateService = SyncStateService();
