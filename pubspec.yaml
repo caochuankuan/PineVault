@@ -38,12 +38,14 @@ dependencies:
   http: ^1.6.0
   path_provider: ^2.1.6
   flutter_secure_storage: ^11.0.0
-  cryptography: ^2.9.0
-  cryptography_flutter: ^2.3.4
   uuid: ^4.6.0
+  sodium: ^3.4.6
+  sodium_libs: ^3.4.6+4
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to

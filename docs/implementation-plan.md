@@ -2,6 +2,8 @@
 
 本文档记录 PineVault（松匣）的实现边界、架构决策、交付阶段和验收条件。它面向参与项目开发的人员，不是最终用户使用说明。
 
+当前进度：本地加密密码库闭环已经实现，并在 Android 真机通过加密、错误密码、密文篡改、持久化与重新解锁测试。WebDAV 配置与同步尚未开始。
+
 ## 1. 产品目标
 
 PineVault 是一个离线优先的多端密码库。客户端负责加密和解密，WebDAV 服务只保存密文，主密码和明文密码条目不得离开设备。
@@ -88,7 +90,7 @@ PineVault 需要防护：
 - 每次加密生成新的随机 nonce。
 - 文件头中的格式版本、密码库 ID 和 KDF 参数作为 AEAD additional data 参与认证。
 
-实现优先使用 `sodium`，由同一个底层库提供 Argon2id、XChaCha20-Poly1305、安全随机数和安全密钥接口。当前项目中的 `cryptography` 和 `cryptography_flutter` 将在完成替换后移除。
+实现使用 `sodium`，由同一个底层库提供 Argon2id、XChaCha20-Poly1305、安全随机数和安全密钥接口。当前 Flutter 3.41.9 / Dart 3.11.5 解析到 `sodium 3.4.6`，因此同时使用配套的 `sodium_libs 3.4.6+4` 提供多端原生二进制。升级到支持 sodium 4 Native Assets 的 Flutter/Dart 后，应移除 `sodium_libs`。
 
 ### 4.4 凭据规则
 
