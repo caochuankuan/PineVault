@@ -9,6 +9,7 @@ import '../models/kdbx_transfer_data.dart';
 import '../models/vault_envelope.dart';
 import '../serialization/vault_codec.dart';
 import '../services/crypto_service.dart';
+import '../services/kdbx_duplicate_detector.dart';
 import '../services/vault_file_service.dart';
 
 class VaultRepository {
@@ -219,7 +220,15 @@ class VaultRepository {
     );
   }
 
-  Future<KdbxImportSummary> importKdbx(KdbxImportData data) async {
+  int countKdbxDuplicates(KdbxImportData data) {
+    final vault = _requireVault();
+    return const KdbxDuplicateDetector().count(vault: vault, data: data);
+  }
+
+  Future<KdbxImportSummary> importKdbx(
+    KdbxImportData data, {
+    required bool skipDuplicates,
+  }) async {
     final vault = _requireVault();
     final now = DateTime.now().toUtc();
     final groups = [...vault.groups];
@@ -228,8 +237,15 @@ class VaultRepository {
     };
     var createdGroupCount = 0;
     final items = [...vault.items];
+    final entriesToImport = skipDuplicates
+        ? const KdbxDuplicateDetector().withoutDuplicates(
+            vault: vault,
+            data: data,
+          )
+        : data.entries;
+    final skippedDuplicateCount = data.entries.length - entriesToImport.length;
 
-    for (final imported in data.entries) {
+    for (final imported in entriesToImport) {
       var groupId = groupIdsByName[imported.groupName];
       if (groupId == null) {
         groupId = _uuid.v4();
@@ -262,12 +278,14 @@ class VaultRepository {
       );
     }
 
-    if (data.entries.isNotEmpty) {
+    final importedCount = entriesToImport.length;
+    if (importedCount > 0) {
       await _save(vault.copyWith(updatedAt: now, groups: groups, items: items));
     }
     return KdbxImportSummary(
-      itemCount: data.entries.length,
+      itemCount: importedCount,
       createdGroupCount: createdGroupCount,
+      skippedDuplicateCount: skippedDuplicateCount,
     );
   }
 

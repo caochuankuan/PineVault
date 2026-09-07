@@ -345,7 +345,7 @@ class VaultViewModel extends ChangeNotifier {
     return succeeded;
   }
 
-  Future<KdbxImportSummary?> importKdbx({
+  Future<KdbxImportPreview?> prepareKdbxImport({
     required Uint8List bytes,
     required String password,
   }) async {
@@ -357,7 +357,33 @@ class VaultViewModel extends ChangeNotifier {
         bytes: bytes,
         password: password,
       );
-      final summary = await _repository.importKdbx(data);
+      final preview = KdbxImportPreview(
+        data: data,
+        duplicateCount: _repository.countKdbxDuplicates(data),
+      );
+      _state = VaultAppState.unlocked;
+      notifyListeners();
+      return preview;
+    } catch (error) {
+      _state = VaultAppState.unlocked;
+      _errorMessage = _readableError(error);
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<KdbxImportSummary?> completeKdbxImport(
+    KdbxImportPreview preview, {
+    required bool skipDuplicates,
+  }) async {
+    _state = VaultAppState.saving;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final summary = await _repository.importKdbx(
+        preview.data,
+        skipDuplicates: skipDuplicates,
+      );
       _state = VaultAppState.unlocked;
       notifyListeners();
       if (summary.itemCount > 0) _scheduleSync('KDBX 导入后自动同步');

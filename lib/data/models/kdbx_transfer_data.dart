@@ -32,8 +32,17 @@ class KdbxImportSummary {
   const KdbxImportSummary({
     required this.itemCount,
     required this.createdGroupCount,
+    required this.skippedDuplicateCount,
   });
 
   final int itemCount;
   final int createdGroupCount;
+  final int skippedDuplicateCount;
+}
+
+class KdbxImportPreview {
+  const KdbxImportPreview({required this.data, required this.duplicateCount});
+
+  final KdbxImportData data;
+  final int duplicateCount;
 }

@@ -305,7 +305,51 @@ Future<void> _importKdbx(BuildContext context, VaultViewModel viewModel) async {
     if (context.mounted) _showMessage(context, '无法读取 KDBX 文件：$error');
     return;
   }
-  final summary = await viewModel.importKdbx(bytes: bytes, password: password);
+  final preview = await viewModel.prepareKdbxImport(
+    bytes: bytes,
+    password: password,
+  );
+  if (!context.mounted) return;
+  if (preview == null) {
+    _showMessage(context, viewModel.errorMessage ?? 'KDBX 导入失败');
+    return;
+  }
+  var skipDuplicates = true;
+  if (preview.duplicateCount > 0) {
+    final action = await showDialog<_DuplicateImportAction>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.content_copy_outlined),
+        title: const Text('发现重复密码'),
+        content: Text(
+          'KDBX 中有 ${preview.duplicateCount} 条密码已经存在。\n\n'
+          '你可以跳过这些重复条目，或仍然将它们全部导入。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(context, _DuplicateImportAction.importAll),
+            child: const Text('全部导入'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(context, _DuplicateImportAction.skipDuplicates),
+            child: const Text('跳过重复'),
+          ),
+        ],
+      ),
+    );
+    if (action == null || !context.mounted) return;
+    skipDuplicates = action == _DuplicateImportAction.skipDuplicates;
+  }
+  final summary = await viewModel.completeKdbxImport(
+    preview,
+    skipDuplicates: skipDuplicates,
+  );
   if (!context.mounted) return;
   if (summary == null) {
     _showMessage(context, viewModel.errorMessage ?? 'KDBX 导入失败');
@@ -314,10 +358,14 @@ Future<void> _importKdbx(BuildContext context, VaultViewModel viewModel) async {
   _showMessage(
     context,
     summary.itemCount == 0
-        ? 'KDBX 中没有可导入的密码条目'
-        : '已导入 ${summary.itemCount} 条密码，新增 ${summary.createdGroupCount} 个分组',
+        ? (summary.skippedDuplicateCount > 0
+              ? '没有新增密码，已跳过 ${summary.skippedDuplicateCount} 条重复项'
+              : 'KDBX 中没有可导入的密码条目')
+        : '已导入 ${summary.itemCount} 条密码，跳过 ${summary.skippedDuplicateCount} 条重复项，新增 ${summary.createdGroupCount} 个分组',
   );
 }
+
+enum _DuplicateImportAction { skipDuplicates, importAll }
 
 Future<void> _exportKdbx(BuildContext context, VaultViewModel viewModel) async {
   final password = await showModalBottomSheet<String>(
