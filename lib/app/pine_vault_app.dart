@@ -44,6 +44,13 @@ class _PineVaultAppState extends State<PineVaultApp>
 
   @override
   Widget build(BuildContext context) {
+    final lightScheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF176B52),
+    );
+    final darkScheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF72D7B2),
+      brightness: Brightness.dark,
+    );
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: widget.vaultViewModel),
@@ -53,20 +60,53 @@ class _PineVaultAppState extends State<PineVaultApp>
         title: 'PineVault',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF176B52)),
+          colorScheme: lightScheme,
           useMaterial3: true,
-          inputDecorationTheme: const InputDecorationTheme(
-            border: OutlineInputBorder(),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: lightScheme.surfaceContainerLow,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(14)),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(14)),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(14)),
+              borderSide: BorderSide(color: lightScheme.primary, width: 1.5),
+            ),
           ),
         ),
         darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF72D7B2),
-            brightness: Brightness.dark,
-          ),
+          colorScheme: darkScheme,
           useMaterial3: true,
-          inputDecorationTheme: const InputDecorationTheme(
-            border: OutlineInputBorder(),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: darkScheme.surfaceContainerLow,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+            border: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(14)),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(14)),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: const BorderRadius.all(Radius.circular(14)),
+              borderSide: BorderSide(color: darkScheme.primary, width: 1.5),
+            ),
           ),
         ),
         home: const _AppRouter(),
