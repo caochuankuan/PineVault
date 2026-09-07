@@ -384,7 +384,7 @@ class _ItemViewerState extends State<_ItemViewer> {
                     children: [
                       Text(label, style: theme.textTheme.labelMedium),
                       const SizedBox(height: 3),
-                      SelectableText(
+                      Text(
                         value.isEmpty ? '未设置' : value,
                         style: theme.textTheme.bodyLarge,
                       ),
@@ -518,7 +518,7 @@ class _ItemViewerState extends State<_ItemViewer> {
                                           style: theme.textTheme.labelMedium,
                                         ),
                                         const SizedBox(height: 3),
-                                        SelectableText(
+                                        Text(
                                           password,
                                           style: theme.textTheme.bodyLarge,
                                         ),
