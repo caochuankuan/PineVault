@@ -58,7 +58,7 @@ class _SetupScreenState extends State<SetupScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '主密码不会保存，也无法找回。请使用至少 12 个字符。',
+                      '主密码不会保存，也无法找回。请使用至少 8 个字符。',
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
                     const SizedBox(height: 24),
@@ -83,8 +83,8 @@ class _SetupScreenState extends State<SetupScreen> {
                         ),
                       ),
                       validator: (value) {
-                        if ((value ?? '').length < 12) {
-                          return '主密码至少需要 12 个字符';
+                        if ((value ?? '').length < 8) {
+                          return '主密码至少需要 8 个字符';
                         }
                         return null;
                       },

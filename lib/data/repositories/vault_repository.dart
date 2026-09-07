@@ -231,8 +231,8 @@ class VaultRepository {
     required String currentPassword,
     required String newPassword,
   }) async {
-    if (newPassword.length < 12) {
-      throw const FormatException('新主密码至少需要 12 个字符');
+    if (newPassword.length < 8) {
+      throw const FormatException('新主密码至少需要 8 个字符');
     }
     final envelope = _envelope;
     final key = _key;

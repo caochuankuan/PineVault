@@ -56,7 +56,7 @@ class _ChangeMasterPasswordDialogState
                 enabled: !_busy,
                 decoration: const InputDecoration(labelText: '新主密码'),
                 validator: (value) =>
-                    (value ?? '').length < 12 ? '新主密码至少需要 12 个字符' : null,
+                    (value ?? '').length < 8 ? '新主密码至少需要 8 个字符' : null,
               ),
               const SizedBox(height: 12),
               TextFormField(

@@ -143,7 +143,7 @@ void main() {
     });
 
     const oldPassword = 'correct horse battery staple';
-    const newPassword = 'a completely different master password';
+    const newPassword = '87654321';
     await repository.create(oldPassword);
     await repository.upsert(
       title: 'Preserved account',

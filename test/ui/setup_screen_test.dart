@@ -27,10 +27,10 @@ void main() {
     await tester.enterText(find.byKey(const Key('confirm-password')), 'short');
     await tester.tap(find.byKey(const Key('create-vault')));
     await tester.pump();
-    expect(find.text('主密码至少需要 12 个字符'), findsOneWidget);
+    expect(find.text('主密码至少需要 8 个字符'), findsOneWidget);
     expect(submittedPassword, isNull);
 
-    const validPassword = 'correct horse battery staple';
+    const validPassword = '12345678';
     await tester.enterText(
       find.byKey(const Key('master-password')),
       validPassword,
