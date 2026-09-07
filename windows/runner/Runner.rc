@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "PineVault" "\0"
-            VALUE "FileDescription", "PineVault" "\0"
+            VALUE "CompanyName", "松匣" "\0"
+            VALUE "FileDescription", "松匣" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "pine_vault" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 PineVault. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 松匣. All rights reserved." "\0"
             VALUE "OriginalFilename", "pine_vault.exe" "\0"
-            VALUE "ProductName", "PineVault" "\0"
+            VALUE "ProductName", "松匣" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
