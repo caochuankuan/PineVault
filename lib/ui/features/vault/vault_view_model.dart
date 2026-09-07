@@ -359,7 +359,7 @@ class VaultViewModel extends ChangeNotifier {
       );
       final preview = KdbxImportPreview(
         data: data,
-        duplicateCount: _repository.countKdbxDuplicates(data),
+        duplicateIndexes: _repository.findKdbxDuplicateIndexes(data),
       );
       _state = VaultAppState.unlocked;
       notifyListeners();
@@ -373,16 +373,21 @@ class VaultViewModel extends ChangeNotifier {
   }
 
   Future<KdbxImportSummary?> completeKdbxImport(
-    KdbxImportPreview preview, {
-    required bool skipDuplicates,
-  }) async {
+    KdbxImportPreview preview,
+    Set<int> selectedIndexes,
+  ) async {
     _state = VaultAppState.saving;
     _errorMessage = null;
     notifyListeners();
     try {
       final summary = await _repository.importKdbx(
-        preview.data,
-        skipDuplicates: skipDuplicates,
+        KdbxImportData(
+          entries: [
+            for (var index = 0; index < preview.data.entries.length; index++)
+              if (selectedIndexes.contains(index)) preview.data.entries[index],
+          ],
+        ),
+        skipDuplicates: false,
       );
       _state = VaultAppState.unlocked;
       notifyListeners();

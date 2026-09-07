@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../data/models/kdbx_transfer_data.dart';
 import '../../../domain/models/vault_item.dart';
 import '../../../domain/models/vault_group.dart';
 import '../../core/vault_brand.dart';
@@ -314,42 +315,19 @@ Future<void> _importKdbx(BuildContext context, VaultViewModel viewModel) async {
     _showMessage(context, viewModel.errorMessage ?? 'KDBX 导入失败');
     return;
   }
-  var skipDuplicates = true;
-  if (preview.duplicateCount > 0) {
-    final action = await showDialog<_DuplicateImportAction>(
-      context: context,
-      builder: (context) => AlertDialog(
-        icon: const Icon(Icons.content_copy_outlined),
-        title: const Text('发现重复密码'),
-        content: Text(
-          'KDBX 中有 ${preview.duplicateCount} 条密码已经存在。\n\n'
-          '你可以跳过这些重复条目，或仍然将它们全部导入。',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () =>
-                Navigator.pop(context, _DuplicateImportAction.importAll),
-            child: const Text('全部导入'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(context, _DuplicateImportAction.skipDuplicates),
-            child: const Text('跳过重复'),
-          ),
-        ],
-      ),
-    );
-    if (action == null || !context.mounted) return;
-    skipDuplicates = action == _DuplicateImportAction.skipDuplicates;
+  if (preview.data.entries.isEmpty) {
+    _showMessage(context, 'KDBX 中没有可导入的密码条目');
+    return;
   }
-  final summary = await viewModel.completeKdbxImport(
-    preview,
-    skipDuplicates: skipDuplicates,
+  final selectedIndexes = await showModalBottomSheet<Set<int>>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _KdbxImportReviewSheet(preview: preview),
   );
+  if (selectedIndexes == null || !context.mounted) return;
+  final summary = await viewModel.completeKdbxImport(preview, selectedIndexes);
   if (!context.mounted) return;
   if (summary == null) {
     _showMessage(context, viewModel.errorMessage ?? 'KDBX 导入失败');
@@ -358,14 +336,283 @@ Future<void> _importKdbx(BuildContext context, VaultViewModel viewModel) async {
   _showMessage(
     context,
     summary.itemCount == 0
-        ? (summary.skippedDuplicateCount > 0
-              ? '没有新增密码，已跳过 ${summary.skippedDuplicateCount} 条重复项'
-              : 'KDBX 中没有可导入的密码条目')
-        : '已导入 ${summary.itemCount} 条密码，跳过 ${summary.skippedDuplicateCount} 条重复项，新增 ${summary.createdGroupCount} 个分组',
+        ? '没有选择要导入的条目'
+        : '已导入 ${summary.itemCount} 条密码，新增 ${summary.createdGroupCount} 个分组',
   );
 }
 
-enum _DuplicateImportAction { skipDuplicates, importAll }
+class _KdbxImportReviewSheet extends StatefulWidget {
+  const _KdbxImportReviewSheet({required this.preview});
+
+  final KdbxImportPreview preview;
+
+  @override
+  State<_KdbxImportReviewSheet> createState() => _KdbxImportReviewSheetState();
+}
+
+class _KdbxImportReviewSheetState extends State<_KdbxImportReviewSheet> {
+  late Set<int> _selectedIndexes;
+
+  List<KdbxImportEntry> get _entries => widget.preview.data.entries;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndexes = {
+      for (var index = 0; index < _entries.length; index++)
+        if (!widget.preview.duplicateIndexes.contains(index)) index,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final problemCount = [
+      for (var index = 0; index < _entries.length; index++)
+        if (_issuesFor(index).isNotEmpty) index,
+    ].length;
+    return FractionallySizedBox(
+      heightFactor: 0.9,
+      child: Material(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        clipBehavior: Clip.antiAlias,
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '选择导入条目',
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '共 ${_entries.length} 条 · 重复 ${widget.preview.duplicateCount} 条 · 有问题 $problemCount 条',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: '关闭',
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    TextButton.icon(
+                      onPressed: _toggleAll,
+                      icon: Icon(
+                        _selectedIndexes.length == _entries.length
+                            ? Icons.deselect_outlined
+                            : Icons.select_all_outlined,
+                      ),
+                      label: Text(
+                        _selectedIndexes.length == _entries.length
+                            ? '取消全选'
+                            : '全选',
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    TextButton.icon(
+                      onPressed: _selectNormal,
+                      icon: const Icon(Icons.verified_outlined),
+                      label: const Text('只选正常项'),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                  itemCount: _entries.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 6),
+                  itemBuilder: (context, index) {
+                    final entry = _entries[index];
+                    final issues = _issuesFor(index);
+                    final selected = _selectedIndexes.contains(index);
+                    return Card(
+                      elevation: 0,
+                      margin: EdgeInsets.zero,
+                      color: issues.isEmpty
+                          ? theme.colorScheme.surfaceContainerLow
+                          : theme.colorScheme.surfaceContainer,
+                      child: CheckboxListTile(
+                        value: selected,
+                        onChanged: (_) => _toggle(index),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: const EdgeInsets.fromLTRB(8, 4, 14, 4),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                entry.title.trim().isEmpty
+                                    ? '（无名称）'
+                                    : entry.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            ...issues.map(
+                              (issue) => Padding(
+                                padding: const EdgeInsets.only(left: 5),
+                                child: _ImportIssueBadge(issue: issue),
+                              ),
+                            ),
+                          ],
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            [
+                              entry.groupName,
+                              if (entry.username.trim().isNotEmpty)
+                                entry.username,
+                              if (entry.url.trim().isNotEmpty) entry.url,
+                            ].join(' · '),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  border: Border(
+                    top: BorderSide(color: theme.colorScheme.outlineVariant),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('取消'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton(
+                        onPressed: _selectedIndexes.isEmpty
+                            ? null
+                            : () => Navigator.pop(
+                                context,
+                                Set<int>.from(_selectedIndexes),
+                              ),
+                        child: Text('导入（${_selectedIndexes.length}）'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<_ImportIssue> _issuesFor(int index) {
+    final entry = _entries[index];
+    return [
+      if (widget.preview.duplicateIndexes.contains(index))
+        _ImportIssue.duplicate,
+      if (entry.title.trim().isEmpty) _ImportIssue.missingTitle,
+      if (entry.password.isEmpty) _ImportIssue.missingPassword,
+    ];
+  }
+
+  void _toggle(int index) {
+    setState(() {
+      if (!_selectedIndexes.remove(index)) _selectedIndexes.add(index);
+    });
+  }
+
+  void _toggleAll() {
+    setState(() {
+      _selectedIndexes = _selectedIndexes.length == _entries.length
+          ? <int>{}
+          : {for (var index = 0; index < _entries.length; index++) index};
+    });
+  }
+
+  void _selectNormal() {
+    setState(() {
+      _selectedIndexes = {
+        for (var index = 0; index < _entries.length; index++)
+          if (_issuesFor(index).isEmpty) index,
+      };
+    });
+  }
+}
+
+enum _ImportIssue { duplicate, missingTitle, missingPassword }
+
+class _ImportIssueBadge extends StatelessWidget {
+  const _ImportIssueBadge({required this.issue});
+
+  final _ImportIssue issue;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final (label, color) = switch (issue) {
+      _ImportIssue.duplicate => ('重复', Colors.orange.shade800),
+      _ImportIssue.missingTitle => ('缺名称', theme.colorScheme.error),
+      _ImportIssue.missingPassword => ('缺密码', theme.colorScheme.error),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
 
 Future<void> _exportKdbx(BuildContext context, VaultViewModel viewModel) async {
   final password = await showModalBottomSheet<String>(

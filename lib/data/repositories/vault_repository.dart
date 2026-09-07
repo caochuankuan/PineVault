@@ -225,6 +225,14 @@ class VaultRepository {
     return const KdbxDuplicateDetector().count(vault: vault, data: data);
   }
 
+  Set<int> findKdbxDuplicateIndexes(KdbxImportData data) {
+    final vault = _requireVault();
+    return const KdbxDuplicateDetector().duplicateIndexes(
+      vault: vault,
+      data: data,
+    );
+  }
+
   Future<KdbxImportSummary> importKdbx(
     KdbxImportData data, {
     required bool skipDuplicates,

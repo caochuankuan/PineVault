@@ -13,10 +13,7 @@ typedef _DuplicateSignature = ({
 class KdbxDuplicateDetector {
   const KdbxDuplicateDetector();
 
-  int count({required Vault vault, required KdbxImportData data}) =>
-      data.entries.length - withoutDuplicates(vault: vault, data: data).length;
-
-  List<KdbxImportEntry> withoutDuplicates({
+  Set<int> duplicateIndexes({
     required Vault vault,
     required KdbxImportData data,
   }) {
@@ -27,9 +24,27 @@ class KdbxDuplicateDetector {
       for (final item in vault.items)
         _vaultItemSignature(item, groupNamesById[item.groupId] ?? '未分组'),
     };
-    return data.entries
-        .where((entry) => signatures.add(_importEntrySignature(entry)))
-        .toList(growable: false);
+    final duplicates = <int>{};
+    for (var index = 0; index < data.entries.length; index++) {
+      if (!signatures.add(_importEntrySignature(data.entries[index]))) {
+        duplicates.add(index);
+      }
+    }
+    return Set.unmodifiable(duplicates);
+  }
+
+  int count({required Vault vault, required KdbxImportData data}) =>
+      duplicateIndexes(vault: vault, data: data).length;
+
+  List<KdbxImportEntry> withoutDuplicates({
+    required Vault vault,
+    required KdbxImportData data,
+  }) {
+    final duplicates = duplicateIndexes(vault: vault, data: data);
+    return [
+      for (var index = 0; index < data.entries.length; index++)
+        if (!duplicates.contains(index)) data.entries[index],
+    ];
   }
 
   _DuplicateSignature _vaultItemSignature(VaultItem item, String groupName) => (

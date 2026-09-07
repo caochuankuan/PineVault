@@ -60,6 +60,7 @@ void main() {
 
     const detector = KdbxDuplicateDetector();
     expect(detector.count(vault: vault, data: data), 2);
+    expect(detector.duplicateIndexes(vault: vault, data: data), {0, 2});
     expect(detector.withoutDuplicates(vault: vault, data: data), [unique]);
   });
 }

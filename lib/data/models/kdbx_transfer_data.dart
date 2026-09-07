@@ -41,8 +41,10 @@ class KdbxImportSummary {
 }
 
 class KdbxImportPreview {
-  const KdbxImportPreview({required this.data, required this.duplicateCount});
+  const KdbxImportPreview({required this.data, required this.duplicateIndexes});
 
   final KdbxImportData data;
-  final int duplicateCount;
+  final Set<int> duplicateIndexes;
+
+  int get duplicateCount => duplicateIndexes.length;
 }
