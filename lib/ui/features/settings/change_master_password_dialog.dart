@@ -30,64 +30,126 @@ class _ChangeMasterPasswordDialogState
   @override
   Widget build(BuildContext context) {
     final height = MediaQuery.sizeOf(context).height;
-    return AlertDialog(
-      title: const Text('修改主密码'),
-      content: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 520, maxHeight: height * 0.55),
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          child: Form(
-            key: _formKey,
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        top: false,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: height * 0.9),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('修改后会立即重包密码库密钥，并尝试同步到坚果云。其他设备下次解锁需使用新主密码。'),
-                const SizedBox(height: 16),
-                TextFormField(
-                  key: const Key('current-master-password'),
-                  controller: _current,
-                  obscureText: true,
-                  enabled: !_busy,
-                  decoration: const InputDecoration(labelText: '当前主密码'),
-                  validator: (value) =>
-                      (value ?? '').isEmpty ? '请输入当前主密码' : null,
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  key: const Key('new-master-password'),
-                  controller: _next,
-                  obscureText: true,
-                  enabled: !_busy,
-                  decoration: const InputDecoration(labelText: '新主密码'),
-                  validator: (value) =>
-                      (value ?? '').length < 8 ? '新主密码至少需要 8 个字符' : null,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '修改主密码',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: '关闭',
+                      onPressed: _busy ? null : () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  key: const Key('confirm-new-master-password'),
-                  controller: _confirm,
-                  obscureText: true,
-                  enabled: !_busy,
-                  decoration: const InputDecoration(labelText: '确认新主密码'),
-                  validator: (value) =>
-                      value != _next.text ? '两次输入的新主密码不一致' : null,
+                const SizedBox(height: 8),
+                Expanded(
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          const Text(
+                            '修改后会立即重包密码库密钥，并尝试同步到坚果云。其他设备下次解锁需使用新主密码。',
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            key: const Key('current-master-password'),
+                            controller: _current,
+                            obscureText: true,
+                            enabled: !_busy,
+                            decoration: const InputDecoration(
+                              labelText: '当前主密码',
+                            ),
+                            validator: (value) =>
+                                (value ?? '').isEmpty ? '请输入当前主密码' : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            key: const Key('new-master-password'),
+                            controller: _next,
+                            obscureText: true,
+                            enabled: !_busy,
+                            decoration: const InputDecoration(
+                              labelText: '新主密码',
+                            ),
+                            validator: (value) => (value ?? '').length < 8
+                                ? '新主密码至少需要 8 个字符'
+                                : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            key: const Key('confirm-new-master-password'),
+                            controller: _confirm,
+                            obscureText: true,
+                            enabled: !_busy,
+                            decoration: const InputDecoration(
+                              labelText: '确认新主密码',
+                            ),
+                            validator: (value) =>
+                                value != _next.text ? '两次输入的新主密码不一致' : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _busy ? null : () => Navigator.pop(context),
+                        child: const Text('取消'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton(
+                        key: const Key('change-master-password'),
+                        onPressed: _busy ? null : _submit,
+                        child: Text(_busy ? '正在修改…' : '确认修改'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _busy ? null : () => Navigator.pop(context),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          key: const Key('change-master-password'),
-          onPressed: _busy ? null : _submit,
-          child: Text(_busy ? '正在修改…' : '确认修改'),
-        ),
-      ],
     );
   }
 

@@ -143,8 +143,11 @@ Future<void> _handleMenu(BuildContext context, _VaultMenuAction action) async {
         MaterialPageRoute(builder: (_) => const SyncHistoryScreen()),
       );
     case _VaultMenuAction.changeMasterPassword:
-      await showDialog<void>(
+      await showModalBottomSheet<void>(
         context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
         builder: (_) => const ChangeMasterPasswordDialog(),
       );
   }
