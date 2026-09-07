@@ -349,7 +349,11 @@ class _VaultList extends StatelessWidget {
                         trailing: item.favorite
                             ? const Icon(Icons.star, color: Colors.amber)
                             : null,
+                        splashColor: Colors.transparent,
+                        hoverColor: Colors.transparent,
+                        focusColor: Colors.transparent,
                         onTap: () => _openViewer(context, viewModel, item),
+                        onLongPress: () => _showItemActions(context, item),
                       ),
                     );
                   },
@@ -357,6 +361,118 @@ class _VaultList extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+enum _ItemAction { all, username, password, website, notes, openWebsite }
+
+Future<void> _showItemActions(BuildContext context, VaultItem item) async {
+  final action = await showModalBottomSheet<_ItemAction>(
+    context: context,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (context) => SafeArea(
+      child: Wrap(
+        children: [
+          ListTile(
+            title: Text(item.title),
+            subtitle: const Text('选择操作'),
+            leading: const Icon(Icons.key_outlined),
+          ),
+          ListTile(
+            leading: const Icon(Icons.copy_all_outlined),
+            title: const Text('复制全部'),
+            onTap: () => Navigator.pop(context, _ItemAction.all),
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_outline),
+            title: const Text('复制账号'),
+            onTap: () => Navigator.pop(context, _ItemAction.username),
+          ),
+          ListTile(
+            leading: const Icon(Icons.password_outlined),
+            title: const Text('复制密码'),
+            onTap: () => Navigator.pop(context, _ItemAction.password),
+          ),
+          ListTile(
+            leading: const Icon(Icons.link_outlined),
+            title: const Text('复制网站'),
+            onTap: () => Navigator.pop(context, _ItemAction.website),
+          ),
+          ListTile(
+            leading: const Icon(Icons.notes_outlined),
+            title: const Text('复制备注'),
+            onTap: () => Navigator.pop(context, _ItemAction.notes),
+          ),
+          if (item.urls.isNotEmpty)
+            ListTile(
+              leading: const Icon(Icons.open_in_new_outlined),
+              title: const Text('打开网站'),
+              onTap: () => Navigator.pop(context, _ItemAction.openWebsite),
+            ),
+        ],
+      ),
+    ),
+  );
+  if (!context.mounted || action == null) return;
+  switch (action) {
+    case _ItemAction.all:
+      await _copyItemText(context, _allItemText(item), '全部信息');
+    case _ItemAction.username:
+      await _copyItemText(context, item.username, '账号');
+    case _ItemAction.password:
+      await _copyItemText(context, item.password, '密码');
+    case _ItemAction.website:
+      await _copyItemText(
+        context,
+        item.urls.isEmpty ? '' : item.urls.first,
+        '网站',
+      );
+    case _ItemAction.notes:
+      await _copyItemText(context, item.notes, '备注');
+    case _ItemAction.openWebsite:
+      await _launchWebsite(context, item.urls.first);
+  }
+}
+
+String _allItemText(VaultItem item) => [
+  '名称：${item.title}',
+  '账号：${item.username}',
+  '密码：${item.password}',
+  '网站：${item.urls.isEmpty ? '' : item.urls.first}',
+  '备注：${item.notes}',
+].join('\n');
+
+Future<void> _copyItemText(
+  BuildContext context,
+  String value,
+  String label,
+) async {
+  await Clipboard.setData(ClipboardData(text: value));
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text('$label已复制')));
+}
+
+Future<void> _launchWebsite(BuildContext context, String value) async {
+  final trimmed = value.trim();
+  final uri = Uri.tryParse(
+    trimmed.contains('://') ? trimmed : 'https://$trimmed',
+  );
+  if (uri == null || uri.host.isEmpty) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('网站地址无效')));
+    }
+    return;
+  }
+  final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (!opened && context.mounted) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('无法打开网站')));
   }
 }
 
