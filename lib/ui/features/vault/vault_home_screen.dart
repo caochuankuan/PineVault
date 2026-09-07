@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../domain/models/vault_item.dart';
 import '../../core/vault_brand.dart';
@@ -356,8 +358,13 @@ class _ItemViewerState extends State<_ItemViewer> {
     final theme = Theme.of(context);
     final compact = MediaQuery.sizeOf(context).width < 600;
 
-    Widget valueRow(String label, String value, IconData icon) {
-      return Padding(
+    Widget valueRow(
+      String label,
+      String value,
+      IconData icon, {
+      VoidCallback? onTap,
+    }) {
+      final content = Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -389,6 +396,9 @@ class _ItemViewerState extends State<_ItemViewer> {
           ),
         ),
       );
+      return onTap == null
+          ? content
+          : GestureDetector(onTap: onTap, child: content);
     }
 
     final password = _obscurePassword
@@ -470,56 +480,65 @@ class _ItemViewerState extends State<_ItemViewer> {
                         '用户名',
                         widget.item.username,
                         Icons.person_outline,
+                        onTap: widget.item.username.isEmpty
+                            ? null
+                            : () => _copy(widget.item.username, '用户名'),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 13,
+                      GestureDetector(
+                        onTap: widget.item.password.isEmpty
+                            ? null
+                            : () => _copy(widget.item.password, '密码'),
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.key_outlined,
-                                  size: 20,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '密码',
-                                        style: theme.textTheme.labelMedium,
-                                      ),
-                                      const SizedBox(height: 3),
-                                      SelectableText(
-                                        password,
-                                        style: theme.textTheme.bodyLarge,
-                                      ),
-                                    ],
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 13,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.key_outlined,
+                                    size: 20,
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
-                                ),
-                                IconButton(
-                                  tooltip: _obscurePassword ? '显示密码' : '隐藏密码',
-                                  onPressed: () => setState(
-                                    () => _obscurePassword = !_obscurePassword,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '密码',
+                                          style: theme.textTheme.labelMedium,
+                                        ),
+                                        const SizedBox(height: 3),
+                                        SelectableText(
+                                          password,
+                                          style: theme.textTheme.bodyLarge,
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
+                                  IconButton(
+                                    tooltip: _obscurePassword ? '显示密码' : '隐藏密码',
+                                    onPressed: () => setState(
+                                      () =>
+                                          _obscurePassword = !_obscurePassword,
+                                    ),
+                                    icon: Icon(
+                                      _obscurePassword
+                                          ? Icons.visibility_outlined
+                                          : Icons.visibility_off_outlined,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -528,6 +547,9 @@ class _ItemViewerState extends State<_ItemViewer> {
                         '网站',
                         widget.item.urls.isEmpty ? '' : widget.item.urls.first,
                         Icons.link_outlined,
+                        onTap: widget.item.urls.isEmpty
+                            ? null
+                            : () => _openWebsite(widget.item.urls.first),
                       ),
                       if (widget.item.notes.isNotEmpty)
                         valueRow('备注', widget.item.notes, Icons.notes_outlined),
@@ -602,6 +624,32 @@ class _ItemViewerState extends State<_ItemViewer> {
 
   void _edit() {
     Navigator.pop(context, _ViewerAction.edit);
+  }
+
+  Future<void> _copy(String value, String label) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label已复制')));
+  }
+
+  Future<void> _openWebsite(String value) async {
+    final uri = Uri.tryParse(value);
+    if (uri == null || !uri.hasScheme) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('网站地址无效')));
+      }
+      return;
+    }
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('无法打开网站')));
+    }
   }
 
   Future<void> _delete() async {
