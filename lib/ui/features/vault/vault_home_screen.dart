@@ -439,6 +439,11 @@ class _ItemViewerState extends State<_ItemViewer> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (widget.item.favorite)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Icon(Icons.star, color: Colors.amber),
+                    ),
                   if (compact)
                     IconButton(
                       tooltip: '关闭',
@@ -520,14 +525,6 @@ class _ItemViewerState extends State<_ItemViewer> {
                       ),
                       if (widget.item.notes.isNotEmpty)
                         valueRow('备注', widget.item.notes, Icons.notes_outlined),
-                      if (widget.item.favorite)
-                        const Align(
-                          alignment: Alignment.centerLeft,
-                          child: Chip(
-                            avatar: Icon(Icons.star, size: 18),
-                            label: Text('已收藏'),
-                          ),
-                        ),
                     ],
                   ),
                 ),
