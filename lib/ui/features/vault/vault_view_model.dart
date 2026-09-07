@@ -6,6 +6,7 @@ import '../../../data/models/sync_history_entry.dart';
 import '../../../data/repositories/vault_repository.dart';
 import '../../../data/services/sync_history_service.dart';
 import '../../../domain/models/vault_item.dart';
+import '../../../domain/models/vault_group.dart';
 import '../../../domain/use_cases/sync_vault_use_case.dart';
 import '../../../domain/use_cases/restore_vault_use_case.dart';
 
@@ -52,6 +53,7 @@ class VaultViewModel extends ChangeNotifier {
   bool _showWebsites = false;
   VaultSortOrder _sortOrder = VaultSortOrder.name;
   bool _sortReversed = false;
+  String _selectedGroupId = 'all';
 
   VaultAppState get state => _state;
   String? get errorMessage => _errorMessage;
@@ -64,6 +66,8 @@ class VaultViewModel extends ChangeNotifier {
   bool get showWebsites => _showWebsites;
   VaultSortOrder get sortOrder => _sortOrder;
   bool get sortReversed => _sortReversed;
+  List<VaultGroup> get groups => _repository.vault?.groups ?? const [];
+  String get selectedGroupId => _selectedGroupId;
   bool get busy =>
       _state == VaultAppState.saving || _state == VaultAppState.syncing;
 
@@ -71,13 +75,19 @@ class VaultViewModel extends ChangeNotifier {
     final allItems = _repository.vault?.items ?? const <VaultItem>[];
     final normalizedQuery = _query.trim().toLowerCase();
     final filtered = normalizedQuery.isEmpty
-        ? allItems
+        ? allItems.where(
+            (item) =>
+                _selectedGroupId == 'all' || item.groupId == _selectedGroupId,
+          )
         : allItems.where((item) {
-            return item.title.toLowerCase().contains(normalizedQuery) ||
-                item.username.toLowerCase().contains(normalizedQuery) ||
-                item.urls.any(
-                  (url) => url.toLowerCase().contains(normalizedQuery),
-                );
+            final inGroup =
+                _selectedGroupId == 'all' || item.groupId == _selectedGroupId;
+            return inGroup &&
+                (item.title.toLowerCase().contains(normalizedQuery) ||
+                    item.username.toLowerCase().contains(normalizedQuery) ||
+                    item.urls.any(
+                      (url) => url.toLowerCase().contains(normalizedQuery),
+                    ));
           });
     final result = filtered.toList(growable: false);
     result.sort((a, b) {
@@ -174,6 +184,7 @@ class VaultViewModel extends ChangeNotifier {
 
   Future<bool> saveItem({
     VaultItem? existing,
+    String groupId = 'default',
     required String title,
     required String username,
     required String password,
@@ -186,6 +197,7 @@ class VaultViewModel extends ChangeNotifier {
       fallbackState: VaultAppState.unlocked,
       operation: () => _repository.upsert(
         existing: existing,
+        groupId: groupId,
         title: title,
         username: username,
         password: password,
@@ -310,6 +322,22 @@ class VaultViewModel extends ChangeNotifier {
   void setQuery(String value) {
     _query = value;
     notifyListeners();
+  }
+
+  void setSelectedGroup(String groupId) {
+    if (_selectedGroupId == groupId) return;
+    _selectedGroupId = groupId;
+    notifyListeners();
+  }
+
+  Future<bool> createGroup(String name) async {
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.saving,
+      fallbackState: VaultAppState.unlocked,
+      operation: () => _repository.createGroup(name),
+    );
+    if (succeeded) _scheduleSync('分组变更自动同步');
+    return succeeded;
   }
 
   void lock() {

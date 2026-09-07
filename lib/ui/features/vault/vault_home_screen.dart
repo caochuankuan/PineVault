@@ -308,6 +308,40 @@ class _VaultList extends StatelessWidget {
             ),
           ),
         ),
+        SizedBox(
+          height: 44,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(left: 16, right: 8, bottom: 8),
+            children: [
+              FilterChip(
+                label: const Text('全部'),
+                selected: viewModel.selectedGroupId == 'all',
+                onSelected: (_) => viewModel.setSelectedGroup('all'),
+              ),
+              ...viewModel.groups.map(
+                (group) => Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: FilterChip(
+                    label: Text(group.name),
+                    selected: viewModel.selectedGroupId == group.id,
+                    onSelected: (_) => viewModel.setSelectedGroup(group.id),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: ActionChip(
+                  avatar: const Icon(Icons.add, size: 18),
+                  label: const Text('新建分组'),
+                  onPressed: viewModel.busy
+                      ? null
+                      : () => _createGroup(context, viewModel),
+                ),
+              ),
+            ],
+          ),
+        ),
         Expanded(
           child: items.isEmpty
               ? _EmptyVault(hasQuery: viewModel.query.isNotEmpty)
@@ -385,6 +419,43 @@ class _VaultList extends StatelessWidget {
       ],
     );
   }
+}
+
+Future<void> _createGroup(
+  BuildContext context,
+  VaultViewModel viewModel,
+) async {
+  final controller = TextEditingController();
+  final name = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('新建分组'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        maxLength: 30,
+        decoration: const InputDecoration(labelText: '分组名称'),
+        onSubmitted: (value) => Navigator.pop(context, value),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, controller.text),
+          child: const Text('创建'),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  if (name == null || !context.mounted) return;
+  final created = await viewModel.createGroup(name);
+  if (!context.mounted || created) return;
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(viewModel.errorMessage ?? '创建分组失败')));
 }
 
 enum _ItemAction { all, username, password, website, notes, openWebsite }
@@ -1064,6 +1135,7 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
   late final TextEditingController _url;
   late final TextEditingController _notes;
   late bool _favorite;
+  late String _groupId;
   bool _obscurePassword = true;
   bool _busy = false;
 
@@ -1079,6 +1151,7 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
     );
     _notes = TextEditingController(text: item?.notes ?? '');
     _favorite = item?.favorite ?? false;
+    _groupId = item?.groupId ?? 'default';
   }
 
   @override
@@ -1227,6 +1300,31 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
                           decoration: decoration('备注', Icons.notes_outlined),
                         ),
                         const SizedBox(height: 4),
+                        if (widget.viewModel.groups.isNotEmpty) ...[
+                          DropdownButtonFormField<String>(
+                            initialValue:
+                                widget.viewModel.groups.any(
+                                  (group) => group.id == _groupId,
+                                )
+                                ? _groupId
+                                : widget.viewModel.groups.first.id,
+                            decoration: decoration('分组', Icons.folder_outlined),
+                            items: widget.viewModel.groups
+                                .map(
+                                  (group) => DropdownMenuItem(
+                                    value: group.id,
+                                    child: Text(group.name),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: _busy
+                                ? null
+                                : (value) => setState(
+                                    () => _groupId = value ?? _groupId,
+                                  ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
                         Row(
                           children: [
                             Icon(
@@ -1304,6 +1402,7 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
     setState(() => _busy = true);
     final saved = await widget.viewModel.saveItem(
       existing: widget.item,
+      groupId: _groupId,
       title: _title.text,
       username: _username.text,
       password: _password.text,

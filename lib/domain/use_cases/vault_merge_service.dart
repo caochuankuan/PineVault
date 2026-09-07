@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/vault.dart';
 import '../models/vault_item.dart';
+import '../models/vault_group.dart';
 
 class VaultMergeResult {
   const VaultMergeResult({
@@ -78,6 +79,7 @@ class VaultMergeService {
         updatedAt: DateTime.now().toUtc(),
         items: List.unmodifiable(items),
         tombstones: List.unmodifiable(sortedTombstones),
+        groups: _mergeGroups(local.groups, remote.groups),
         webDavCredentials: local.webDavCredentials ?? remote.webDavCredentials,
       ),
       conflictCount: conflicts,
@@ -97,6 +99,18 @@ class VaultMergeService {
     return leftCredentials.serverUri == rightCredentials.serverUri &&
         leftCredentials.username == rightCredentials.username &&
         leftCredentials.password == rightCredentials.password;
+  }
+
+  List<VaultGroup> _mergeGroups(
+    List<VaultGroup> local,
+    List<VaultGroup> remote,
+  ) {
+    final byId = <String, VaultGroup>{
+      for (final group in remote) group.id: group,
+      for (final group in local) group.id: group,
+    };
+    return byId.values.toList(growable: false)
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
   }
 
   void _addConflict(
@@ -126,6 +140,7 @@ class VaultMergeService {
     final now = DateTime.now().toUtc();
     return VaultItem(
       id: _uuid.v4(),
+      groupId: item.groupId,
       type: item.type,
       title: '${item.title}（同步冲突）',
       username: item.username,

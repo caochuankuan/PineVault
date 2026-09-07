@@ -3,6 +3,7 @@ enum VaultItemType { login, secureNote }
 class VaultItem {
   const VaultItem({
     required this.id,
+    this.groupId = 'default',
     required this.type,
     required this.title,
     required this.username,
@@ -16,6 +17,7 @@ class VaultItem {
   });
 
   final String id;
+  final String groupId;
   final VaultItemType type;
   final String title;
   final String username;
@@ -28,39 +30,25 @@ class VaultItem {
   final int revision;
 
   factory VaultItem.fromJson(Map<String, dynamic> json) {
-    return switch (json) {
-      {
-        'id': final String id,
-        'type': final String type,
-        'title': final String title,
-        'username': final String username,
-        'password': final String password,
-        'urls': final List<dynamic> urls,
-        'notes': final String notes,
-        'favorite': final bool favorite,
-        'createdAt': final String createdAt,
-        'updatedAt': final String updatedAt,
-        'revision': final int revision,
-      } =>
-        VaultItem(
-          id: id,
-          type: VaultItemType.values.byName(type),
-          title: title,
-          username: username,
-          password: password,
-          urls: List.unmodifiable(urls.cast<String>()),
-          notes: notes,
-          favorite: favorite,
-          createdAt: DateTime.parse(createdAt),
-          updatedAt: DateTime.parse(updatedAt),
-          revision: revision,
-        ),
-      _ => throw const FormatException('Invalid vault item.'),
-    };
+    return VaultItem(
+      id: json['id'] as String,
+      groupId: json['groupId'] as String? ?? 'default',
+      type: VaultItemType.values.byName(json['type'] as String),
+      title: json['title'] as String,
+      username: json['username'] as String,
+      password: json['password'] as String,
+      urls: List.unmodifiable((json['urls'] as List<dynamic>).cast<String>()),
+      notes: json['notes'] as String,
+      favorite: json['favorite'] as bool,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      revision: json['revision'] as int,
+    );
   }
 
   Map<String, dynamic> toJson() => {
     'id': id,
+    'groupId': groupId,
     'type': type.name,
     'title': title,
     'username': username,
@@ -74,6 +62,7 @@ class VaultItem {
   };
 
   VaultItem copyWith({
+    String? groupId,
     String? title,
     String? username,
     String? password,
@@ -85,6 +74,7 @@ class VaultItem {
   }) {
     return VaultItem(
       id: id,
+      groupId: groupId ?? this.groupId,
       type: type,
       title: title ?? this.title,
       username: username ?? this.username,

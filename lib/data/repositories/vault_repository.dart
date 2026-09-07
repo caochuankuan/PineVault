@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/models/vault.dart';
 import '../../domain/models/vault_item.dart';
+import '../../domain/models/vault_group.dart';
 import '../../domain/models/webdav_configuration.dart';
 import '../models/vault_envelope.dart';
 import '../serialization/vault_codec.dart';
@@ -118,6 +119,9 @@ class VaultRepository {
       createdAt: now,
       updatedAt: now,
       items: const [],
+      groups: [
+        VaultGroup(id: 'default', name: '未分组', createdAt: now, updatedAt: now),
+      ],
       tombstones: const [],
     );
     final created = _cryptoService.createVault(
@@ -148,6 +152,7 @@ class VaultRepository {
 
   Future<void> upsert({
     VaultItem? existing,
+    String groupId = 'default',
     required String title,
     required String username,
     required String password,
@@ -160,6 +165,7 @@ class VaultRepository {
     final item = existing == null
         ? VaultItem(
             id: _uuid.v4(),
+            groupId: groupId,
             type: VaultItemType.login,
             title: title.trim(),
             username: username.trim(),
@@ -172,6 +178,7 @@ class VaultRepository {
             revision: 1,
           )
         : existing.copyWith(
+            groupId: groupId,
             title: title.trim(),
             username: username.trim(),
             password: password,
@@ -190,6 +197,25 @@ class VaultRepository {
       items[index] = item;
     }
     await _save(vault.copyWith(updatedAt: now, items: items));
+  }
+
+  Future<void> createGroup(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) throw const FormatException('分组名称不能为空');
+    final vault = _requireVault();
+    if (vault.groups.any((group) => group.name == trimmed)) {
+      throw const FormatException('分组名称已存在');
+    }
+    final now = DateTime.now().toUtc();
+    final group = VaultGroup(
+      id: _uuid.v4(),
+      name: trimmed,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await _save(
+      vault.copyWith(updatedAt: now, groups: [...vault.groups, group]),
+    );
   }
 
   Future<void> delete(VaultItem item) async {

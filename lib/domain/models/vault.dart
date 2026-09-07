@@ -1,4 +1,5 @@
 import 'vault_item.dart';
+import 'vault_group.dart';
 import 'webdav_configuration.dart';
 
 class Vault {
@@ -8,6 +9,7 @@ class Vault {
     required this.createdAt,
     required this.updatedAt,
     required this.items,
+    this.groups = const [],
     required this.tombstones,
     this.webDavCredentials,
   });
@@ -17,34 +19,46 @@ class Vault {
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<VaultItem> items;
+  final List<VaultGroup> groups;
   final List<String> tombstones;
   final WebDavCredentials? webDavCredentials;
 
   factory Vault.fromJson(Map<String, dynamic> json) {
-    return switch (json) {
-      {
-        'id': final String id,
-        'schemaVersion': final int schemaVersion,
-        'createdAt': final String createdAt,
-        'updatedAt': final String updatedAt,
-        'items': final List<dynamic> items,
-        'tombstones': final List<dynamic> tombstones,
-      } =>
-        Vault(
-          id: id,
-          schemaVersion: schemaVersion,
-          createdAt: DateTime.parse(createdAt),
-          updatedAt: DateTime.parse(updatedAt),
-          items: List.unmodifiable(
-            items.map(
-              (item) => VaultItem.fromJson(item as Map<String, dynamic>),
+    final createdAt = DateTime.parse(json['createdAt'] as String);
+    final updatedAt = DateTime.parse(json['updatedAt'] as String);
+    final groupsValue = json['groups'] as List<dynamic>?;
+    final groups = groupsValue == null || groupsValue.isEmpty
+        ? [
+            VaultGroup(
+              id: 'default',
+              name: '未分组',
+              createdAt: createdAt,
+              updatedAt: updatedAt,
             ),
-          ),
-          tombstones: List.unmodifiable(tombstones.cast<String>()),
-          webDavCredentials: _webDavCredentials(json['webDav']),
+          ]
+        : groupsValue
+              .map(
+                (group) => VaultGroup.fromJson(group as Map<String, dynamic>),
+              )
+              .toList(growable: false);
+    return Vault(
+      id: json['id'] as String,
+      schemaVersion: (json['schemaVersion'] as int? ?? 1) < 2
+          ? 2
+          : json['schemaVersion'] as int,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      groups: List.unmodifiable(groups),
+      items: List.unmodifiable(
+        (json['items'] as List<dynamic>).map(
+          (item) => VaultItem.fromJson(item as Map<String, dynamic>),
         ),
-      _ => throw const FormatException('Invalid vault.'),
-    };
+      ),
+      tombstones: List.unmodifiable(
+        (json['tombstones'] as List<dynamic>).cast<String>(),
+      ),
+      webDavCredentials: _webDavCredentials(json['webDav']),
+    );
   }
 
   Map<String, dynamic> toJson() => {
@@ -53,6 +67,7 @@ class Vault {
     'createdAt': createdAt.toUtc().toIso8601String(),
     'updatedAt': updatedAt.toUtc().toIso8601String(),
     'items': items.map((item) => item.toJson()).toList(growable: false),
+    'groups': groups.map((group) => group.toJson()).toList(growable: false),
     'tombstones': tombstones,
     if (webDavCredentials case final credentials?)
       'webDav': {
@@ -65,16 +80,18 @@ class Vault {
   Vault copyWith({
     DateTime? updatedAt,
     List<VaultItem>? items,
+    List<VaultGroup>? groups,
     List<String>? tombstones,
     WebDavCredentials? webDavCredentials,
     bool clearWebDavCredentials = false,
   }) {
     return Vault(
       id: id,
-      schemaVersion: schemaVersion,
+      schemaVersion: 2,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       items: List.unmodifiable(items ?? this.items),
+      groups: List.unmodifiable(groups ?? this.groups),
       tombstones: List.unmodifiable(tombstones ?? this.tombstones),
       webDavCredentials: clearWebDavCredentials
           ? null
