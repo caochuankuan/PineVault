@@ -7,8 +7,11 @@
 #include "generated_plugin_registrant.h"
 
 #include <sodium_libs/sodium_libs_plugin_c_api.h>
+#include <url_launcher_windows/url_launcher_windows.h>
 
 void RegisterPlugins(flutter::PluginRegistry* registry) {
   SodiumLibsPluginCApiRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("SodiumLibsPluginCApi"));
+  UrlLauncherWindowsRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("UrlLauncherWindows"));
 }
