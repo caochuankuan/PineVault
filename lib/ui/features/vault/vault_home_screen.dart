@@ -275,9 +275,29 @@ Future<void> _openEditor(
   VaultViewModel viewModel, [
   VaultItem? item,
 ]) async {
+  final window = MediaQuery.sizeOf(context);
+  if (window.width < 600) {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _ItemEditorDialog(viewModel: viewModel, item: item),
+    );
+    return;
+  }
+
   await showDialog<void>(
     context: context,
-    builder: (context) => _ItemEditorDialog(viewModel: viewModel, item: item),
+    builder: (context) => Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: 560,
+        height: (window.height * 0.82).clamp(520.0, 720.0),
+        child: _ItemEditorDialog(viewModel: viewModel, item: item),
+      ),
+    ),
   );
 }
 
@@ -328,90 +348,190 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.item == null ? '新建密码' : '编辑密码'),
-      content: SizedBox(
-        width: 520,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  key: const Key('item-title'),
-                  controller: _title,
-                  autofocus: true,
-                  decoration: const InputDecoration(labelText: '名称'),
-                  validator: (value) =>
-                      (value ?? '').trim().isEmpty ? '请输入名称' : null,
+    final theme = Theme.of(context);
+    final compact = MediaQuery.sizeOf(context).width < 600;
+    final fieldFill = theme.colorScheme.surfaceContainerLow;
+
+    InputDecoration decoration(String label, IconData icon) {
+      return InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 20),
+        filled: true,
+        fillColor: fieldFill,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+        ),
+      );
+    }
+
+    return Material(
+      color: theme.colorScheme.surface,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, compact ? 12 : 20, 20, 12),
+          child: Column(
+            children: [
+              if (compact)
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _username,
-                  decoration: const InputDecoration(labelText: '用户名'),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  key: const Key('item-password'),
-                  controller: _password,
-                  obscureText: _obscurePassword,
-                  enableSuggestions: false,
-                  autocorrect: false,
-                  decoration: InputDecoration(
-                    labelText: '密码',
-                    suffixIcon: IconButton(
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.item == null ? '新建密码' : '编辑密码',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
+                  if (compact)
+                    IconButton(
+                      tooltip: '关闭',
+                      onPressed: _busy ? null : () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.viewInsetsOf(context).bottom + 12,
+                    ),
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          key: const Key('item-title'),
+                          controller: _title,
+                          autofocus: !compact,
+                          decoration: decoration('名称', Icons.label_outline),
+                          validator: (value) =>
+                              (value ?? '').trim().isEmpty ? '请输入名称' : null,
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: _username,
+                          decoration: decoration('用户名', Icons.person_outline),
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          key: const Key('item-password'),
+                          controller: _password,
+                          obscureText: _obscurePassword,
+                          enableSuggestions: false,
+                          autocorrect: false,
+                          decoration: decoration('密码', Icons.key_outlined)
+                              .copyWith(
+                                suffixIcon: IconButton(
+                                  onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  ),
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                  ),
+                                ),
+                              ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: _url,
+                          keyboardType: TextInputType.url,
+                          decoration: decoration('网站', Icons.link_outlined),
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: _notes,
+                          minLines: 2,
+                          maxLines: 4,
+                          decoration: decoration('备注', Icons.notes_outlined),
+                        ),
+                        const SizedBox(height: 4),
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          value: _favorite,
+                          title: const Text('收藏此条目'),
+                          secondary: const Icon(Icons.star_outline),
+                          onChanged: _busy
+                              ? null
+                              : (value) => setState(() => _favorite = value),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _url,
-                  keyboardType: TextInputType.url,
-                  decoration: const InputDecoration(labelText: '网站'),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _notes,
-                  minLines: 2,
-                  maxLines: 5,
-                  decoration: const InputDecoration(labelText: '备注'),
-                ),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: _favorite,
-                  title: const Text('收藏'),
-                  onChanged: (value) =>
-                      setState(() => _favorite = value ?? false),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  if (widget.item != null)
+                    TextButton(
+                      onPressed: _busy ? null : _delete,
+                      child: const Text('删除'),
+                    ),
+                  const Spacer(),
+                  if (!compact)
+                    TextButton(
+                      onPressed: _busy ? null : () => Navigator.pop(context),
+                      child: const Text('取消'),
+                    ),
+                  if (compact)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _busy ? null : () => Navigator.pop(context),
+                        child: const Text('取消'),
+                      ),
+                    ),
+                  const SizedBox(width: 10),
+                  if (compact)
+                    Expanded(
+                      child: FilledButton(
+                        key: const Key('save-item'),
+                        onPressed: _busy ? null : _save,
+                        child: Text(_busy ? '保存中…' : '保存'),
+                      ),
+                    )
+                  else
+                    FilledButton(
+                      key: const Key('save-item'),
+                      onPressed: _busy ? null : _save,
+                      child: Text(_busy ? '保存中…' : '保存'),
+                    ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
-      actions: [
-        if (widget.item != null)
-          TextButton(
-            onPressed: _busy ? null : _delete,
-            child: const Text('删除'),
-          ),
-        TextButton(
-          onPressed: _busy ? null : () => Navigator.pop(context),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          key: const Key('save-item'),
-          onPressed: _busy ? null : _save,
-          child: Text(_busy ? '保存中…' : '保存'),
-        ),
-      ],
     );
   }
 
