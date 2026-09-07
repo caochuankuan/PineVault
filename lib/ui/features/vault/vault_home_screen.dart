@@ -169,10 +169,38 @@ class _VaultList extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: SearchBar(
-            hintText: '搜索名称、用户名或网站',
-            leading: const Icon(Icons.search),
+          child: TextField(
+            key: const Key('vault-search'),
             onChanged: viewModel.setQuery,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: '搜索名称、用户名或网站',
+              prefixIcon: const Icon(Icons.search_rounded),
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 15,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 1.5,
+                ),
+              ),
+            ),
           ),
         ),
         Expanded(
