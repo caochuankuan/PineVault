@@ -1,17 +1,22 @@
 # PineVault
 
-A new Flutter project.
+PineVault（松匣）是一个离线优先、使用端到端加密并支持 WebDAV 同步的多端密码库。
 
-## Getting Started
+## 文档
 
-This project is a starting point for a Flutter application.
+- [实施计划](docs/implementation-plan.md)
 
-A few resources to get you started if this is your first Flutter project:
+## 当前状态
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- Flutter 多端项目已初始化。
+- Android 包名和 Apple Bundle ID 为 `app.pinevault.client`。
+- 已在 Android 真机上完成编译、安装和启动验证。
+- 功能实现尚未开始，下一步是本地加密密码库闭环。
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 开发检查
+
+```bash
+dart format --output=none --set-exit-if-changed .
+flutter analyze
+flutter test
+```
