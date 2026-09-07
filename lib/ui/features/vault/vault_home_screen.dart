@@ -597,6 +597,9 @@ class _ItemViewerState extends State<_ItemViewer> {
                         onTap: widget.item.urls.isEmpty
                             ? null
                             : () => _openWebsite(widget.item.urls.first),
+                        onCopy: widget.item.urls.isEmpty
+                            ? null
+                            : () => _copy(widget.item.urls.first, '网站'),
                       ),
                       if (widget.item.notes.isNotEmpty)
                         valueRow('备注', widget.item.notes, Icons.notes_outlined),
