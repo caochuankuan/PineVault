@@ -332,28 +332,51 @@ class _VaultList extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          child: Text(
-                            item.title.isEmpty
-                                ? '?'
-                                : item.title[0].toUpperCase(),
-                          ),
-                        ),
-                        title: Text(item.title),
-                        subtitle: Text(
-                          details,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: item.favorite
-                            ? const Icon(Icons.star, color: Colors.amber)
-                            : null,
-                        splashColor: Colors.transparent,
-                        hoverColor: Colors.transparent,
-                        focusColor: Colors.transparent,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
                         onTap: () => _openViewer(context, viewModel, item),
                         onLongPress: () => _showItemActions(context, item),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                child: Text(
+                                  item.title.isEmpty
+                                      ? '?'
+                                      : item.title[0].toUpperCase(),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      details,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (item.favorite)
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 8),
+                                  child: Icon(Icons.star, color: Colors.amber),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -372,45 +395,48 @@ Future<void> _showItemActions(BuildContext context, VaultItem item) async {
     useSafeArea: true,
     showDragHandle: true,
     builder: (context) => SafeArea(
-      child: Wrap(
-        children: [
-          ListTile(
-            title: Text(item.title),
-            subtitle: const Text('选择操作'),
-            leading: const Icon(Icons.key_outlined),
-          ),
-          ListTile(
-            leading: const Icon(Icons.copy_all_outlined),
-            title: const Text('复制全部'),
-            onTap: () => Navigator.pop(context, _ItemAction.all),
-          ),
-          ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: const Text('复制账号'),
-            onTap: () => Navigator.pop(context, _ItemAction.username),
-          ),
-          ListTile(
-            leading: const Icon(Icons.password_outlined),
-            title: const Text('复制密码'),
-            onTap: () => Navigator.pop(context, _ItemAction.password),
-          ),
-          ListTile(
-            leading: const Icon(Icons.link_outlined),
-            title: const Text('复制网站'),
-            onTap: () => Navigator.pop(context, _ItemAction.website),
-          ),
-          ListTile(
-            leading: const Icon(Icons.notes_outlined),
-            title: const Text('复制备注'),
-            onTap: () => Navigator.pop(context, _ItemAction.notes),
-          ),
-          if (item.urls.isNotEmpty)
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Wrap(
+          children: [
             ListTile(
-              leading: const Icon(Icons.open_in_new_outlined),
-              title: const Text('打开网站'),
-              onTap: () => Navigator.pop(context, _ItemAction.openWebsite),
+              title: Text(item.title),
+              subtitle: const Text('选择操作'),
+              leading: const Icon(Icons.key_outlined),
             ),
-        ],
+            ListTile(
+              leading: const Icon(Icons.copy_all_outlined),
+              title: const Text('复制全部'),
+              onTap: () => Navigator.pop(context, _ItemAction.all),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('复制账号'),
+              onTap: () => Navigator.pop(context, _ItemAction.username),
+            ),
+            ListTile(
+              leading: const Icon(Icons.password_outlined),
+              title: const Text('复制密码'),
+              onTap: () => Navigator.pop(context, _ItemAction.password),
+            ),
+            ListTile(
+              leading: const Icon(Icons.link_outlined),
+              title: const Text('复制网站'),
+              onTap: () => Navigator.pop(context, _ItemAction.website),
+            ),
+            ListTile(
+              leading: const Icon(Icons.notes_outlined),
+              title: const Text('复制备注'),
+              onTap: () => Navigator.pop(context, _ItemAction.notes),
+            ),
+            if (item.urls.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.open_in_new_outlined),
+                title: const Text('打开网站'),
+                onTap: () => Navigator.pop(context, _ItemAction.openWebsite),
+              ),
+          ],
+        ),
       ),
     ),
   );
