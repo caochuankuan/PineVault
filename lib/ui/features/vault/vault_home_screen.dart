@@ -28,46 +28,38 @@ class VaultHomeScreen extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
-          IconButton(
-            tooltip: '立即同步',
-            onPressed: viewModel.busy ? null : () => _sync(context, viewModel),
-            icon: const Icon(Icons.sync),
-          ),
-          IconButton(
-            tooltip: 'WebDAV 设置',
-            onPressed: viewModel.busy
-                ? null
-                : () => Navigator.push<void>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const WebDavSettingsScreen(),
-                    ),
-                  ),
-            icon: const Icon(Icons.cloud_sync_outlined),
-          ),
           PopupMenuButton<_VaultMenuAction>(
+            tooltip: '更多操作',
             onSelected: (action) => _handleMenu(context, action),
-            itemBuilder: (_) => const [
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: _VaultMenuAction.sync,
+                enabled: !viewModel.busy,
+                child: const _MenuRow(icon: Icons.sync, label: '立即同步'),
+              ),
+              PopupMenuItem(
+                value: _VaultMenuAction.webDav,
+                enabled: !viewModel.busy,
+                child: const _MenuRow(
+                  icon: Icons.cloud_sync_outlined,
+                  label: 'WebDAV 设置',
+                ),
+              ),
               PopupMenuItem(
                 value: _VaultMenuAction.history,
-                child: ListTile(
-                  leading: Icon(Icons.history),
-                  title: Text('同步历史'),
-                ),
+                child: const _MenuRow(icon: Icons.history, label: '同步历史'),
               ),
               PopupMenuItem(
                 value: _VaultMenuAction.changeMasterPassword,
-                child: ListTile(
-                  leading: Icon(Icons.key_outlined),
-                  title: Text('修改主密码'),
-                ),
+                enabled: !viewModel.busy,
+                child: const _MenuRow(icon: Icons.key_outlined, label: '修改主密码'),
+              ),
+              PopupMenuItem(
+                value: _VaultMenuAction.lock,
+                enabled: !viewModel.busy,
+                child: const _MenuRow(icon: Icons.lock_outline, label: '锁定'),
               ),
             ],
-          ),
-          IconButton(
-            tooltip: '锁定',
-            onPressed: viewModel.busy ? null : viewModel.lock,
-            icon: const Icon(Icons.lock_outline),
           ),
         ],
       ),
@@ -133,10 +125,30 @@ class VaultHomeScreen extends StatelessWidget {
   }
 }
 
-enum _VaultMenuAction { history, changeMasterPassword }
+enum _VaultMenuAction { sync, webDav, history, changeMasterPassword, lock }
+
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [Icon(icon), const SizedBox(width: 12), Text(label)]);
+  }
+}
 
 Future<void> _handleMenu(BuildContext context, _VaultMenuAction action) async {
+  final viewModel = context.read<VaultViewModel>();
   switch (action) {
+    case _VaultMenuAction.sync:
+      await _sync(context, viewModel);
+    case _VaultMenuAction.webDav:
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute(builder: (_) => const WebDavSettingsScreen()),
+      );
     case _VaultMenuAction.history:
       await Navigator.push<void>(
         context,
@@ -150,6 +162,8 @@ Future<void> _handleMenu(BuildContext context, _VaultMenuAction action) async {
         backgroundColor: Colors.transparent,
         builder: (_) => const ChangeMasterPasswordDialog(),
       );
+    case _VaultMenuAction.lock:
+      viewModel.lock();
   }
 }
 
