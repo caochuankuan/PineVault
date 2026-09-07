@@ -315,53 +315,42 @@ class _VaultList extends StatelessWidget {
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
-                    return ListTile(
-                      leading: CircleAvatar(
-                        child: Text(
-                          item.title.isEmpty
-                              ? '?'
-                              : item.title[0].toUpperCase(),
-                        ),
+                    final details = <String>[
+                      item.username.isEmpty ? '未设置用户名' : item.username,
+                      if (viewModel.showWebsites && item.urls.isNotEmpty)
+                        item.urls.first,
+                      if (viewModel.showPasswords)
+                        item.password.isEmpty ? '未设置密码' : item.password,
+                    ].join(' · ');
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
                       ),
-                      title: Text(item.title),
-                      subtitle:
-                          viewModel.showPasswords || viewModel.showWebsites
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.username.isEmpty
-                                      ? '未设置用户名'
-                                      : item.username,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (viewModel.showWebsites &&
-                                    item.urls.isNotEmpty)
-                                  Text(
-                                    item.urls.first,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                if (viewModel.showPasswords)
-                                  Text(
-                                    item.password.isEmpty
-                                        ? '未设置密码'
-                                        : item.password,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                              ],
-                            )
-                          : Text(
-                              item.username.isEmpty ? '未设置用户名' : item.username,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                      trailing: item.favorite
-                          ? const Icon(Icons.star, color: Colors.amber)
-                          : null,
-                      onTap: () => _openViewer(context, viewModel, item),
+                      elevation: 0,
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          child: Text(
+                            item.title.isEmpty
+                                ? '?'
+                                : item.title[0].toUpperCase(),
+                          ),
+                        ),
+                        title: Text(item.title),
+                        subtitle: Text(
+                          details,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: item.favorite
+                            ? const Icon(Icons.star, color: Colors.amber)
+                            : null,
+                        onTap: () => _openViewer(context, viewModel, item),
+                      ),
                     );
                   },
                 ),
