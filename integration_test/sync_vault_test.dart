@@ -252,12 +252,35 @@ void main() {
 
     final adoptedPassword = await sync();
     expect(adoptedPassword.outcome, VaultSyncOutcome.downloaded);
+    expect(adoptedPassword.masterPasswordChanged, isTrue);
     localRepository.lock();
     await expectLater(
       localRepository.unlock(masterPassword),
       throwsA(isA<VaultUnlockException>()),
     );
     await localRepository.unlock(changedMasterPassword);
+    expect(localRepository.vault!.items, hasLength(2));
+
+    const localCandidatePassword = 'locally changed master password';
+    const remoteCandidatePassword = 'remotely changed master password';
+    await localRepository.changeMasterPassword(
+      currentPassword: changedMasterPassword,
+      newPassword: localCandidatePassword,
+    );
+    await passwordChangeRepository.changeMasterPassword(
+      currentPassword: changedMasterPassword,
+      newPassword: remoteCandidatePassword,
+    );
+    remoteBytes = utf8.encode(passwordChangeRepository.exportEncryptedVault());
+    etagVersion++;
+
+    await sync(forceUpload: true);
+    localRepository.lock();
+    await expectLater(
+      localRepository.unlock(localCandidatePassword),
+      throwsA(isA<VaultUnlockException>()),
+    );
+    await localRepository.unlock(remoteCandidatePassword);
     expect(localRepository.vault!.items, hasLength(2));
   });
 }

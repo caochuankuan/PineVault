@@ -30,7 +30,7 @@ class VaultUnlockException implements Exception {
   const VaultUnlockException();
 
   @override
-  String toString() => '主密码错误或密码库已损坏';
+  String toString() => '主密码错误；如果其他设备修改过主密码，请输入最新主密码';
 }
 
 class SodiumCryptoService {

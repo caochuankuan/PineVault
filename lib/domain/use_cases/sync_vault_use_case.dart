@@ -24,13 +24,13 @@ class VaultSyncResult {
     required this.outcome,
     required this.conflictCount,
     this.webDavConflict = false,
-    this.masterPasswordConflict = false,
+    this.masterPasswordChanged = false,
   });
 
   final VaultSyncOutcome outcome;
   final int conflictCount;
   final bool webDavConflict;
-  final bool masterPasswordConflict;
+  final bool masterPasswordChanged;
 }
 
 class SyncVaultUseCase {
@@ -111,7 +111,6 @@ class SyncVaultUseCase {
     );
     final localChanged = !_sameVault(local, merged.vault);
     var adoptedRemoteWrapping = false;
-    var masterPasswordConflict = false;
     if (state != null) {
       final localWrappingChanged = !_sameWrapping(
         localEncodedBeforeSync,
@@ -121,15 +120,9 @@ class SyncVaultUseCase {
         remoteEncoded,
         state.baseEnvelope,
       );
-      if (remoteWrappingChanged && !localWrappingChanged) {
+      if (remoteWrappingChanged) {
         await _vaultRepository.adoptKeyWrapping(remoteEncoded);
         adoptedRemoteWrapping = true;
-      } else if (localWrappingChanged && remoteWrappingChanged) {
-        masterPasswordConflict = !_sameWrapping(
-          localEncodedBeforeSync,
-          remoteEncoded,
-        );
-        forceUpload = true;
       } else if (localWrappingChanged) {
         forceUpload = true;
       }
@@ -169,7 +162,7 @@ class SyncVaultUseCase {
       outcome: outcome,
       conflictCount: merged.conflictCount,
       webDavConflict: merged.webDavConflict,
-      masterPasswordConflict: masterPasswordConflict,
+      masterPasswordChanged: adoptedRemoteWrapping,
     );
   }
 

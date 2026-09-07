@@ -93,21 +93,6 @@ class VaultHomeScreen extends StatelessWidget {
                 ),
               ],
             ),
-          if (viewModel.masterPasswordConflict)
-            MaterialBanner(
-              content: const Text(
-                '检测到两台设备都修改了主密码，已保留当前设备的主密码并上传。其他设备需要使用当前主密码。',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => const ChangeMasterPasswordDialog(),
-                  ),
-                  child: const Text('重新设置'),
-                ),
-              ],
-            ),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {

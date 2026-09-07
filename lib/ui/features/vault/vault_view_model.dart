@@ -41,7 +41,6 @@ class VaultViewModel extends ChangeNotifier {
   String? _syncMessage;
   String? _syncProgress;
   bool _webDavConflict = false;
-  bool _masterPasswordConflict = false;
   bool _syncRunning = false;
   List<SyncHistoryEntry> _syncHistory = const [];
   Timer? _periodicSyncTimer;
@@ -53,7 +52,6 @@ class VaultViewModel extends ChangeNotifier {
   String? get syncMessage => _syncMessage;
   String? get syncProgress => _syncProgress;
   bool get webDavConflict => _webDavConflict;
-  bool get masterPasswordConflict => _masterPasswordConflict;
   List<SyncHistoryEntry> get syncHistory => _syncHistory;
   String get query => _query;
   bool get busy =>
@@ -196,7 +194,6 @@ class VaultViewModel extends ChangeNotifier {
     _syncMessage = null;
     _syncProgress = '正在准备同步';
     _webDavConflict = false;
-    _masterPasswordConflict = false;
     notifyListeners();
     try {
       final result = await _syncVault(
@@ -215,12 +212,11 @@ class VaultViewModel extends ChangeNotifier {
         VaultSyncOutcome.upToDate => '已经是最新版本',
       };
       _webDavConflict = result.webDavConflict;
-      _masterPasswordConflict = result.masterPasswordConflict;
       if (result.webDavConflict) {
         _syncMessage = '同步完成；WebDAV 配置不同，已保留本机配置';
       }
-      if (result.masterPasswordConflict) {
-        _syncMessage = '同步完成；两端都修改了主密码，已保留本机主密码';
+      if (result.masterPasswordChanged) {
+        _syncMessage = '主密码已在其他设备修改，下次解锁请输入最新主密码';
       }
       await _recordHistory(trigger, true, _syncMessage!);
       _state = VaultAppState.unlocked;
