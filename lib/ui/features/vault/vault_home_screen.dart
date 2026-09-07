@@ -395,48 +395,46 @@ Future<void> _showItemActions(BuildContext context, VaultItem item) async {
     useSafeArea: true,
     showDragHandle: true,
     builder: (context) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 24),
-        child: Wrap(
-          children: [
+      child: Wrap(
+        children: [
+          ListTile(
+            title: Text(item.title),
+            subtitle: const Text('选择操作'),
+            leading: const Icon(Icons.key_outlined),
+          ),
+          ListTile(
+            leading: const Icon(Icons.copy_all_outlined),
+            title: const Text('复制全部'),
+            onTap: () => Navigator.pop(context, _ItemAction.all),
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_outline),
+            title: const Text('复制账号'),
+            onTap: () => Navigator.pop(context, _ItemAction.username),
+          ),
+          ListTile(
+            leading: const Icon(Icons.password_outlined),
+            title: const Text('复制密码'),
+            onTap: () => Navigator.pop(context, _ItemAction.password),
+          ),
+          ListTile(
+            leading: const Icon(Icons.link_outlined),
+            title: const Text('复制网站'),
+            onTap: () => Navigator.pop(context, _ItemAction.website),
+          ),
+          ListTile(
+            leading: const Icon(Icons.notes_outlined),
+            title: const Text('复制备注'),
+            onTap: () => Navigator.pop(context, _ItemAction.notes),
+          ),
+          if (item.urls.isNotEmpty)
             ListTile(
-              title: Text(item.title),
-              subtitle: const Text('选择操作'),
-              leading: const Icon(Icons.key_outlined),
+              leading: const Icon(Icons.open_in_new_outlined),
+              title: const Text('打开网站'),
+              onTap: () => Navigator.pop(context, _ItemAction.openWebsite),
             ),
-            ListTile(
-              leading: const Icon(Icons.copy_all_outlined),
-              title: const Text('复制全部'),
-              onTap: () => Navigator.pop(context, _ItemAction.all),
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text('复制账号'),
-              onTap: () => Navigator.pop(context, _ItemAction.username),
-            ),
-            ListTile(
-              leading: const Icon(Icons.password_outlined),
-              title: const Text('复制密码'),
-              onTap: () => Navigator.pop(context, _ItemAction.password),
-            ),
-            ListTile(
-              leading: const Icon(Icons.link_outlined),
-              title: const Text('复制网站'),
-              onTap: () => Navigator.pop(context, _ItemAction.website),
-            ),
-            ListTile(
-              leading: const Icon(Icons.notes_outlined),
-              title: const Text('复制备注'),
-              onTap: () => Navigator.pop(context, _ItemAction.notes),
-            ),
-            if (item.urls.isNotEmpty)
-              ListTile(
-                leading: const Icon(Icons.open_in_new_outlined),
-                title: const Text('打开网站'),
-                onTap: () => Navigator.pop(context, _ItemAction.openWebsite),
-              ),
-          ],
-        ),
+          const SizedBox(height: 20),
+        ],
       ),
     ),
   );
