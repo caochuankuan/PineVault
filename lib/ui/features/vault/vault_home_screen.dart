@@ -427,12 +427,14 @@ Future<void> _showItemActions(BuildContext context, VaultItem item) async {
             title: const Text('复制备注'),
             onTap: () => Navigator.pop(context, _ItemAction.notes),
           ),
-          if (item.urls.isNotEmpty)
-            ListTile(
-              leading: const Icon(Icons.open_in_new_outlined),
-              title: const Text('打开网站'),
-              onTap: () => Navigator.pop(context, _ItemAction.openWebsite),
-            ),
+          ListTile(
+            leading: const Icon(Icons.open_in_new_outlined),
+            title: const Text('打开网站'),
+            enabled: item.urls.isNotEmpty,
+            onTap: item.urls.isEmpty
+                ? null
+                : () => Navigator.pop(context, _ItemAction.openWebsite),
+          ),
           const SizedBox(height: 20),
         ],
       ),
