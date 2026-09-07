@@ -68,7 +68,10 @@ class _WebDavSettingsScreenState extends State<WebDavSettingsScreen> {
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: 8),
-                    const Text('请使用坚果云账号和“第三方应用管理”中生成的应用密码。连接成功后凭据才会写入系统安全存储。'),
+                    const Text(
+                      '请使用坚果云账号和“第三方应用管理”中生成的应用密码。'
+                      '连接成功后，配置会写入主密码加密的密码库。',
+                    ),
                     const SizedBox(height: 24),
                     TextFormField(
                       key: const Key('webdav-server'),
@@ -196,7 +199,7 @@ class _WebDavSettingsScreenState extends State<WebDavSettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('删除 WebDAV 配置？'),
-        content: const Text('服务器地址、账号和应用密码将从本机安全存储中删除。'),
+        content: const Text('服务器地址、账号和应用密码将从当前加密密码库中删除。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),

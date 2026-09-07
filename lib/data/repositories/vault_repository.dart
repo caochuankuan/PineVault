@@ -31,6 +31,9 @@ class VaultRepository {
 
   Vault? get vault => _vault;
 
+  VaultEnvelope decodeEnvelope(String encoded) =>
+      _codec.decodeEnvelope(encoded);
+
   String exportEncryptedVault() {
     final envelope = _envelope;
     if (envelope == null) throw StateError('Vault is locked.');
@@ -222,6 +225,45 @@ class VaultRepository {
         clearWebDavCredentials: true,
       ),
     );
+  }
+
+  Future<void> changeMasterPassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (newPassword.length < 12) {
+      throw const FormatException('新主密码至少需要 12 个字符');
+    }
+    final envelope = _envelope;
+    final key = _key;
+    if (envelope == null || key == null) {
+      throw StateError('密码库尚未解锁');
+    }
+    final updatedEnvelope = _cryptoService.changeMasterPassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+      envelope: envelope,
+      vaultKey: key,
+    );
+    await _fileService.write(_codec.encodeEnvelope(updatedEnvelope));
+    _envelope = updatedEnvelope;
+  }
+
+  Future<void> adoptKeyWrapping(String encoded) async {
+    final current = _envelope;
+    if (current == null || _key == null) {
+      throw StateError('密码库尚未解锁');
+    }
+    final remote = _codec.decodeEnvelope(encoded);
+    if (remote.vaultId != current.vaultId) {
+      throw const FormatException('同步文件不属于当前密码库');
+    }
+    final updated = current.copyWithWrapping(
+      newKdf: remote.kdf,
+      newWrappedKey: remote.wrappedKey,
+    );
+    await _fileService.write(_codec.encodeEnvelope(updated));
+    _envelope = updated;
   }
 
   void lock() {

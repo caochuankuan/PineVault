@@ -123,6 +123,49 @@ void main() {
     expect(item.password, 'persisted-secret');
     expect(item.favorite, isTrue);
   });
+
+  testWidgets('changes the master password without changing vault data', (
+    tester,
+  ) async {
+    final temporaryDirectory = await Directory.systemTemp.createTemp(
+      'pine_vault_password_change_',
+    );
+    final repository = VaultRepository(
+      cryptoService: cryptoService,
+      fileService: VaultFileService(
+        directoryProvider: () async => temporaryDirectory,
+      ),
+      codec: codec,
+    );
+    addTearDown(() async {
+      repository.lock();
+      await temporaryDirectory.delete(recursive: true);
+    });
+
+    const oldPassword = 'correct horse battery staple';
+    const newPassword = 'a completely different master password';
+    await repository.create(oldPassword);
+    await repository.upsert(
+      title: 'Preserved account',
+      username: 'person@example.com',
+      password: 'preserved-secret',
+      url: '',
+      notes: '',
+      favorite: false,
+    );
+    await repository.changeMasterPassword(
+      currentPassword: oldPassword,
+      newPassword: newPassword,
+    );
+    repository.lock();
+
+    await expectLater(
+      repository.unlock(oldPassword),
+      throwsA(isA<VaultUnlockException>()),
+    );
+    await repository.unlock(newPassword);
+    expect(repository.vault!.items.single.password, 'preserved-secret');
+  });
 }
 
 Vault _sampleVault() {

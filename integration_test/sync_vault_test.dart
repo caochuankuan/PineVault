@@ -35,11 +35,15 @@ void main() {
     final rejectedRoot = await Directory.systemTemp.createTemp(
       'pine_sync_rejected_',
     );
+    final passwordChangeRoot = await Directory.systemTemp.createTemp(
+      'pine_sync_password_change_',
+    );
     addTearDown(() async {
       await root.delete(recursive: true);
       await remoteRoot.delete(recursive: true);
       await restoredRoot.delete(recursive: true);
       await rejectedRoot.delete(recursive: true);
+      await passwordChangeRoot.delete(recursive: true);
     });
     final sodium = await SodiumSumoInit.init();
     const codec = VaultCodec();
@@ -214,19 +218,47 @@ void main() {
       favorite: false,
     );
     rejectNextConditionalUpload = true;
-    await expectLater(sync(), throwsA(isA<WebDavException>()));
-    expect(localRepository.vault!.items, hasLength(1));
-
-    final merged = await sync();
+    final stages = <VaultSyncStage>[];
+    final merged = await sync(onStage: stages.add);
 
     expect(merged.outcome, VaultSyncOutcome.merged);
     expect(merged.conflictCount, 1);
+    expect(stages, contains(VaultSyncStage.retrying));
     expect(localRepository.vault!.items, hasLength(2));
     expect(
       localRepository.vault!.items.any((item) => item.title.endsWith('（同步冲突）')),
       isTrue,
     );
     expect(utf8.decode(remoteBytes!), isNot(contains('remote-password')));
+
+    final passwordChangeFileService = VaultFileService(
+      directoryProvider: () async => passwordChangeRoot,
+    );
+    await passwordChangeFileService.write(utf8.decode(remoteBytes!));
+    final passwordChangeRepository = VaultRepository(
+      cryptoService: crypto,
+      fileService: passwordChangeFileService,
+      codec: codec,
+    );
+    addTearDown(passwordChangeRepository.lock);
+    await passwordChangeRepository.unlock(masterPassword);
+    const changedMasterPassword = 'new master password for every device';
+    await passwordChangeRepository.changeMasterPassword(
+      currentPassword: masterPassword,
+      newPassword: changedMasterPassword,
+    );
+    remoteBytes = utf8.encode(passwordChangeRepository.exportEncryptedVault());
+    etagVersion++;
+
+    final adoptedPassword = await sync();
+    expect(adoptedPassword.outcome, VaultSyncOutcome.downloaded);
+    localRepository.lock();
+    await expectLater(
+      localRepository.unlock(masterPassword),
+      throwsA(isA<VaultUnlockException>()),
+    );
+    await localRepository.unlock(changedMasterPassword);
+    expect(localRepository.vault!.items, hasLength(2));
   });
 }
 

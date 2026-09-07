@@ -6,10 +6,14 @@ import '../../../domain/models/webdav_configuration.dart';
 enum WebDavSettingsState { idle, loading, testing, clearing }
 
 class WebDavSettingsViewModel extends ChangeNotifier {
-  WebDavSettingsViewModel({required WebDavRepository repository})
-    : _repository = repository;
+  WebDavSettingsViewModel({
+    required WebDavRepository repository,
+    VoidCallback? onConfigurationSaved,
+  }) : _repository = repository,
+       _onConfigurationSaved = onConfigurationSaved;
 
   final WebDavRepository _repository;
+  final VoidCallback? _onConfigurationSaved;
   WebDavSettingsState _state = WebDavSettingsState.idle;
   WebDavConfiguration? _configuration;
   String? _errorMessage;
@@ -48,6 +52,7 @@ class WebDavSettingsViewModel extends ChangeNotifier {
         password: password,
       );
       _configuration = await _repository.loadConfiguration();
+      _onConfigurationSaved?.call();
       return true;
     } catch (error) {
       _errorMessage = _message(error);

@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../../domain/models/vault_item.dart';
 import '../../core/vault_brand.dart';
+import '../settings/change_master_password_dialog.dart';
+import '../settings/sync_history_screen.dart';
 import '../settings/webdav_settings_screen.dart';
 import 'vault_view_model.dart';
 
@@ -41,6 +43,25 @@ class VaultHomeScreen extends StatelessWidget {
                   ),
             icon: const Icon(Icons.cloud_sync_outlined),
           ),
+          PopupMenuButton<_VaultMenuAction>(
+            onSelected: (action) => _handleMenu(context, action),
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: _VaultMenuAction.history,
+                child: ListTile(
+                  leading: Icon(Icons.history),
+                  title: Text('同步历史'),
+                ),
+              ),
+              PopupMenuItem(
+                value: _VaultMenuAction.changeMasterPassword,
+                child: ListTile(
+                  leading: Icon(Icons.key_outlined),
+                  title: Text('修改主密码'),
+                ),
+              ),
+            ],
+          ),
           IconButton(
             tooltip: '锁定',
             onPressed: viewModel.busy ? null : viewModel.lock,
@@ -48,27 +69,70 @@ class VaultHomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final list = _VaultList(viewModel: viewModel);
-          if (constraints.maxWidth >= 900) {
-            return Row(
-              children: [
-                SizedBox(width: 360, child: list),
-                const VerticalDivider(width: 1),
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      '选择一个条目，或创建新密码',
-                      style: Theme.of(context).textTheme.titleMedium,
+      body: Column(
+        children: [
+          if (viewModel.syncProgress case final progress?) ...[
+            const LinearProgressIndicator(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Text(progress),
+            ),
+          ],
+          if (viewModel.webDavConflict)
+            MaterialBanner(
+              content: const Text('检测到其他设备使用了不同的 WebDAV 配置，本次同步已保留当前设备配置。'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const WebDavSettingsScreen(),
                     ),
                   ),
+                  child: const Text('检查配置'),
                 ),
               ],
-            );
-          }
-          return list;
-        },
+            ),
+          if (viewModel.masterPasswordConflict)
+            MaterialBanner(
+              content: const Text(
+                '检测到两台设备都修改了主密码，已保留当前设备的主密码并上传。其他设备需要使用当前主密码。',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const ChangeMasterPasswordDialog(),
+                  ),
+                  child: const Text('重新设置'),
+                ),
+              ],
+            ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final list = _VaultList(viewModel: viewModel);
+                if (constraints.maxWidth >= 900) {
+                  return Row(
+                    children: [
+                      SizedBox(width: 360, child: list),
+                      const VerticalDivider(width: 1),
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            '选择一个条目，或创建新密码',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return list;
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('add-item'),
@@ -79,6 +143,23 @@ class VaultHomeScreen extends StatelessWidget {
         label: const Text('新建'),
       ),
     );
+  }
+}
+
+enum _VaultMenuAction { history, changeMasterPassword }
+
+Future<void> _handleMenu(BuildContext context, _VaultMenuAction action) async {
+  switch (action) {
+    case _VaultMenuAction.history:
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute(builder: (_) => const SyncHistoryScreen()),
+      );
+    case _VaultMenuAction.changeMasterPassword:
+      await showDialog<void>(
+        context: context,
+        builder: (_) => const ChangeMasterPasswordDialog(),
+      );
   }
 }
 

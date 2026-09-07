@@ -148,6 +148,48 @@ class SodiumCryptoService {
     return vault;
   }
 
+  VaultEnvelope changeMasterPassword({
+    required String currentPassword,
+    required String newPassword,
+    required VaultEnvelope envelope,
+    required SecureKey vaultKey,
+  }) {
+    final verified = unlock(
+      masterPassword: currentPassword,
+      envelope: envelope,
+    );
+    verified.key.dispose();
+
+    final salt = _sodium.randombytes.buf(_pwhash.saltBytes);
+    final parameters = KdfParameters(
+      algorithm: 'argon2id13',
+      salt: base64Encode(salt),
+      operations: _pwhash.opsLimitInteractive,
+      memory: _pwhash.memLimitInteractive,
+    );
+    final wrappingKey = _deriveKey(newPassword, parameters);
+    final nonce = _sodium.randombytes.buf(_aead.nonceBytes);
+    final rawVaultKey = vaultKey.extractBytes();
+    try {
+      final wrappedKey = _aead.encrypt(
+        message: rawVaultKey,
+        nonce: nonce,
+        key: wrappingKey,
+        additionalData: _associatedData(envelope.vaultId, parameters),
+      );
+      return envelope.copyWithWrapping(
+        newKdf: parameters,
+        newWrappedKey: CipherPayload(
+          nonce: base64Encode(nonce),
+          ciphertext: base64Encode(wrappedKey),
+        ),
+      );
+    } finally {
+      rawVaultKey.fillRange(0, rawVaultKey.length, 0);
+      wrappingKey.dispose();
+    }
+  }
+
   CipherPayload _encryptPayload(Vault vault, SecureKey key) {
     final nonce = _sodium.randombytes.buf(_aead.nonceBytes);
     final message = Uint8List.fromList(_codec.encodeVault(vault));

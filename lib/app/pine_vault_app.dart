@@ -7,7 +7,7 @@ import '../ui/features/unlock/unlock_screen.dart';
 import '../ui/features/vault/vault_home_screen.dart';
 import '../ui/features/vault/vault_view_model.dart';
 
-class PineVaultApp extends StatelessWidget {
+class PineVaultApp extends StatefulWidget {
   const PineVaultApp({
     super.key,
     required this.vaultViewModel,
@@ -18,11 +18,36 @@ class PineVaultApp extends StatelessWidget {
   final WebDavSettingsViewModel webDavSettingsViewModel;
 
   @override
+  State<PineVaultApp> createState() => _PineVaultAppState();
+}
+
+class _PineVaultAppState extends State<PineVaultApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      widget.vaultViewModel.onAppResumed();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(value: vaultViewModel),
-        ChangeNotifierProvider.value(value: webDavSettingsViewModel),
+        ChangeNotifierProvider.value(value: widget.vaultViewModel),
+        ChangeNotifierProvider.value(value: widget.webDavSettingsViewModel),
       ],
       child: MaterialApp(
         title: 'PineVault',

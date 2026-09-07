@@ -59,7 +59,10 @@ class _RestoreScreenState extends State<RestoreScreen> {
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: 8),
-                    const Text('应用会先下载密文并验证主密码，验证成功后才保存到本机。坚果云应用密码只保存在当前设备。'),
+                    const Text(
+                      '应用会先下载密文并验证主密码，验证成功后才保存到本机。'
+                      '坚果云配置会随密码库一起加密。',
+                    ),
                     const SizedBox(height: 24),
                     TextFormField(
                       key: const Key('restore-server'),

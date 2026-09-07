@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
+import '../../../data/models/sync_history_entry.dart';
 import '../../../data/repositories/vault_repository.dart';
+import '../../../data/services/sync_history_service.dart';
 import '../../../domain/models/vault_item.dart';
 import '../../../domain/use_cases/sync_vault_use_case.dart';
 import '../../../domain/use_cases/restore_vault_use_case.dart';
@@ -22,21 +26,35 @@ class VaultViewModel extends ChangeNotifier {
     required VaultRepository repository,
     required SyncVaultUseCase syncVault,
     required RestoreVaultUseCase restoreVault,
+    required SyncHistoryService syncHistoryService,
   }) : _repository = repository,
        _syncVault = syncVault,
-       _restoreVault = restoreVault;
+       _restoreVault = restoreVault,
+       _syncHistoryService = syncHistoryService;
 
   final VaultRepository _repository;
   final SyncVaultUseCase _syncVault;
   final RestoreVaultUseCase _restoreVault;
+  final SyncHistoryService _syncHistoryService;
   VaultAppState _state = VaultAppState.initializing;
   String? _errorMessage;
   String? _syncMessage;
+  String? _syncProgress;
+  bool _webDavConflict = false;
+  bool _masterPasswordConflict = false;
+  bool _syncRunning = false;
+  List<SyncHistoryEntry> _syncHistory = const [];
+  Timer? _periodicSyncTimer;
+  Timer? _debouncedSyncTimer;
   String _query = '';
 
   VaultAppState get state => _state;
   String? get errorMessage => _errorMessage;
   String? get syncMessage => _syncMessage;
+  String? get syncProgress => _syncProgress;
+  bool get webDavConflict => _webDavConflict;
+  bool get masterPasswordConflict => _masterPasswordConflict;
+  List<SyncHistoryEntry> get syncHistory => _syncHistory;
   String get query => _query;
   bool get busy =>
       _state == VaultAppState.saving || _state == VaultAppState.syncing;
@@ -68,17 +86,26 @@ class VaultViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> createVault(String masterPassword) => _runBusy(
-    busyState: VaultAppState.creating,
-    fallbackState: VaultAppState.noVault,
-    operation: () => _repository.create(masterPassword),
-  );
+  Future<void> createVault(String masterPassword) async {
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.creating,
+      fallbackState: VaultAppState.noVault,
+      operation: () => _repository.create(masterPassword),
+    );
+    if (succeeded) _startPeriodicSync();
+  }
 
-  Future<void> unlock(String masterPassword) => _runBusy(
-    busyState: VaultAppState.unlocking,
-    fallbackState: VaultAppState.locked,
-    operation: () => _repository.unlock(masterPassword),
-  );
+  Future<void> unlock(String masterPassword) async {
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.unlocking,
+      fallbackState: VaultAppState.locked,
+      operation: () => _repository.unlock(masterPassword),
+    );
+    if (succeeded) {
+      _startPeriodicSync();
+      unawaited(_performSync(trigger: '解锁自动同步', quietIfUnconfigured: true));
+    }
+  }
 
   Future<String?> restore({
     required String serverUrl,
@@ -98,6 +125,8 @@ class VaultViewModel extends ChangeNotifier {
       );
       _state = VaultAppState.unlocked;
       notifyListeners();
+      _startPeriodicSync();
+      unawaited(_performSync(trigger: '恢复后同步', quietIfUnconfigured: true));
       return null;
     } catch (error) {
       _state = VaultAppState.noVault;
@@ -118,33 +147,65 @@ class VaultViewModel extends ChangeNotifier {
     required String url,
     required String notes,
     required bool favorite,
-  }) => _runBusy(
-    busyState: VaultAppState.saving,
-    fallbackState: VaultAppState.unlocked,
-    operation: () => _repository.upsert(
-      existing: existing,
-      title: title,
-      username: username,
-      password: password,
-      url: url,
-      notes: notes,
-      favorite: favorite,
-    ),
-  );
+  }) async {
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.saving,
+      fallbackState: VaultAppState.unlocked,
+      operation: () => _repository.upsert(
+        existing: existing,
+        title: title,
+        username: username,
+        password: password,
+        url: url,
+        notes: notes,
+        favorite: favorite,
+      ),
+    );
+    if (succeeded) _scheduleSync('内容变更自动同步');
+    return succeeded;
+  }
 
-  Future<bool> deleteItem(VaultItem item) => _runBusy(
-    busyState: VaultAppState.saving,
-    fallbackState: VaultAppState.unlocked,
-    operation: () => _repository.delete(item),
-  );
+  Future<bool> deleteItem(VaultItem item) async {
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.saving,
+      fallbackState: VaultAppState.unlocked,
+      operation: () => _repository.delete(item),
+    );
+    if (succeeded) _scheduleSync('内容变更自动同步');
+    return succeeded;
+  }
 
-  Future<bool> sync() async {
+  Future<bool> sync() => _performSync(trigger: '手动同步');
+
+  Future<bool> _performSync({
+    required String trigger,
+    bool quietIfUnconfigured = false,
+    bool forceUpload = false,
+  }) async {
+    if (_syncRunning || _repository.vault == null) return false;
+    if (!await _syncVault.isConfigured()) {
+      if (!quietIfUnconfigured) {
+        _errorMessage = '尚未配置 WebDAV';
+        notifyListeners();
+      }
+      return false;
+    }
+    _syncRunning = true;
     _state = VaultAppState.syncing;
     _errorMessage = null;
     _syncMessage = null;
+    _syncProgress = '正在准备同步';
+    _webDavConflict = false;
+    _masterPasswordConflict = false;
     notifyListeners();
     try {
-      final result = await _syncVault();
+      final result = await _syncVault(
+        forceUpload: forceUpload,
+        onStage: (stage) {
+          _syncProgress = _stageMessage(stage);
+          notifyListeners();
+        },
+      );
       _syncMessage = switch (result.outcome) {
         VaultSyncOutcome.uploaded => '密码库已上传',
         VaultSyncOutcome.downloaded => '已应用远端更新',
@@ -153,14 +214,65 @@ class VaultViewModel extends ChangeNotifier {
         VaultSyncOutcome.merged => '同步合并完成',
         VaultSyncOutcome.upToDate => '已经是最新版本',
       };
+      _webDavConflict = result.webDavConflict;
+      _masterPasswordConflict = result.masterPasswordConflict;
+      if (result.webDavConflict) {
+        _syncMessage = '同步完成；WebDAV 配置不同，已保留本机配置';
+      }
+      if (result.masterPasswordConflict) {
+        _syncMessage = '同步完成；两端都修改了主密码，已保留本机主密码';
+      }
+      await _recordHistory(trigger, true, _syncMessage!);
       _state = VaultAppState.unlocked;
+      _syncProgress = null;
       notifyListeners();
       return true;
     } catch (error) {
       _state = VaultAppState.unlocked;
       _errorMessage = error.toString().replaceFirst('Bad state: ', '');
+      _syncProgress = null;
+      await _recordHistory(trigger, false, _errorMessage!);
       notifyListeners();
       return false;
+    } finally {
+      _syncRunning = false;
+    }
+  }
+
+  Future<bool> changeMasterPassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.saving,
+      fallbackState: VaultAppState.unlocked,
+      operation: () => _repository.changeMasterPassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      ),
+    );
+    if (succeeded) {
+      await _performSync(
+        trigger: '修改主密码后同步',
+        quietIfUnconfigured: true,
+        forceUpload: true,
+      );
+    }
+    return succeeded;
+  }
+
+  Future<void> loadSyncHistory() async {
+    final vault = _repository.vault;
+    if (vault == null) return;
+    _syncHistory = await _syncHistoryService.read(vault.id);
+    notifyListeners();
+  }
+
+  void requestAutoSync() => _scheduleSync('配置变更自动同步');
+
+  void onAppResumed() {
+    if (_state == VaultAppState.unlocked) {
+      _scheduleSync('返回前台自动同步', delay: Duration.zero);
     }
   }
 
@@ -170,12 +282,71 @@ class VaultViewModel extends ChangeNotifier {
   }
 
   void lock() {
+    _periodicSyncTimer?.cancel();
+    _debouncedSyncTimer?.cancel();
     _repository.lock();
     _query = '';
     _errorMessage = null;
     _syncMessage = null;
     _state = VaultAppState.locked;
     notifyListeners();
+  }
+
+  void _startPeriodicSync() {
+    _periodicSyncTimer?.cancel();
+    _periodicSyncTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      if (_state == VaultAppState.unlocked) {
+        unawaited(_performSync(trigger: '定时自动同步', quietIfUnconfigured: true));
+      }
+    });
+  }
+
+  void _scheduleSync(
+    String trigger, {
+    Duration delay = const Duration(seconds: 2),
+  }) {
+    _debouncedSyncTimer?.cancel();
+    _debouncedSyncTimer = Timer(delay, () {
+      unawaited(_performSync(trigger: trigger, quietIfUnconfigured: true));
+    });
+  }
+
+  Future<void> _recordHistory(
+    String trigger,
+    bool success,
+    String message,
+  ) async {
+    final vault = _repository.vault;
+    if (vault == null) return;
+    try {
+      _syncHistory = await _syncHistoryService.append(
+        vault.id,
+        SyncHistoryEntry(
+          timestamp: DateTime.now().toUtc(),
+          trigger: trigger,
+          success: success,
+          message: message,
+        ),
+      );
+    } catch (_) {
+      // Sync success must not be reversed by optional history persistence.
+    }
+  }
+
+  String _stageMessage(VaultSyncStage stage) => switch (stage) {
+    VaultSyncStage.preparing => '正在准备同步',
+    VaultSyncStage.downloading => '正在下载远端密码库',
+    VaultSyncStage.merging => '正在合并本地与远端更改',
+    VaultSyncStage.uploading => '正在上传加密密码库',
+    VaultSyncStage.saving => '正在保存合并结果',
+    VaultSyncStage.retrying => '远端已更新，正在重新下载并重试',
+  };
+
+  @override
+  void dispose() {
+    _periodicSyncTimer?.cancel();
+    _debouncedSyncTimer?.cancel();
+    super.dispose();
   }
 
   Future<bool> _runBusy({

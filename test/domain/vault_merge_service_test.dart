@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pine_vault/domain/models/vault.dart';
 import 'package:pine_vault/domain/models/vault_item.dart';
+import 'package:pine_vault/domain/models/webdav_configuration.dart';
 import 'package:pine_vault/domain/use_cases/vault_merge_service.dart';
 
 void main() {
@@ -94,11 +95,33 @@ void main() {
       containsAll(['local', 'remote']),
     );
   });
+
+  test('reports different WebDAV configurations and keeps the local one', () {
+    final localCredentials = WebDavCredentials(
+      serverUri: Uri.parse('https://dav.example.test/dav/'),
+      username: 'local@example.com',
+      password: 'local-password',
+    );
+    final remoteCredentials = WebDavCredentials(
+      serverUri: Uri.parse('https://dav.example.test/dav/'),
+      username: 'remote@example.com',
+      password: 'remote-password',
+    );
+    final result = mergeService.merge(
+      base: null,
+      local: _vault(webDavCredentials: localCredentials),
+      remote: _vault(webDavCredentials: remoteCredentials),
+    );
+
+    expect(result.webDavConflict, isTrue);
+    expect(result.vault.webDavCredentials?.username, 'local@example.com');
+  });
 }
 
 Vault _vault({
   List<VaultItem> items = const [],
   List<String> tombstones = const [],
+  WebDavCredentials? webDavCredentials,
 }) {
   final now = DateTime.utc(2026, 9, 7);
   return Vault(
@@ -108,6 +131,7 @@ Vault _vault({
     updatedAt: now,
     items: items,
     tombstones: tombstones,
+    webDavCredentials: webDavCredentials,
   );
 }
 

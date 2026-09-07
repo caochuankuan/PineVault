@@ -119,4 +119,16 @@ class VaultEnvelope {
     wrappedKey: wrappedKey,
     payload: newPayload,
   );
+
+  VaultEnvelope copyWithWrapping({
+    required KdfParameters newKdf,
+    required CipherPayload newWrappedKey,
+  }) => VaultEnvelope(
+    magic: magic,
+    version: version,
+    vaultId: vaultId,
+    kdf: newKdf,
+    wrappedKey: newWrappedKey,
+    payload: payload,
+  );
 }

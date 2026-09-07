@@ -6,10 +6,15 @@ import '../models/vault.dart';
 import '../models/vault_item.dart';
 
 class VaultMergeResult {
-  const VaultMergeResult({required this.vault, required this.conflictCount});
+  const VaultMergeResult({
+    required this.vault,
+    required this.conflictCount,
+    required this.webDavConflict,
+  });
 
   final Vault vault;
   final int conflictCount;
+  final bool webDavConflict;
 }
 
 class VaultMergeService {
@@ -76,7 +81,22 @@ class VaultMergeService {
         webDavCredentials: local.webDavCredentials ?? remote.webDavCredentials,
       ),
       conflictCount: conflicts,
+      webDavConflict:
+          local.webDavCredentials != null &&
+          remote.webDavCredentials != null &&
+          !_sameWebDav(local, remote),
     );
+  }
+
+  bool _sameWebDav(Vault left, Vault right) {
+    final leftCredentials = left.webDavCredentials;
+    final rightCredentials = right.webDavCredentials;
+    if (leftCredentials == null || rightCredentials == null) {
+      return leftCredentials == rightCredentials;
+    }
+    return leftCredentials.serverUri == rightCredentials.serverUri &&
+        leftCredentials.username == rightCredentials.username &&
+        leftCredentials.password == rightCredentials.password;
   }
 
   void _addConflict(

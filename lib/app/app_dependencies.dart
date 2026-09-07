@@ -5,6 +5,7 @@ import '../data/repositories/webdav_repository.dart';
 import '../data/serialization/vault_codec.dart';
 import '../data/services/crypto_service.dart';
 import '../data/services/sync_state_service.dart';
+import '../data/services/sync_history_service.dart';
 import '../data/services/vault_file_service.dart';
 import '../data/services/webdav_credential_store.dart';
 import '../data/services/webdav_service.dart';
@@ -47,14 +48,17 @@ class AppDependencies {
       webDavRepository: webDavRepository,
       stateService: syncStateService,
     );
+    final vaultViewModel = VaultViewModel(
+      repository: repository,
+      syncVault: syncVault,
+      restoreVault: restoreVault,
+      syncHistoryService: SyncHistoryService(),
+    );
     return AppDependencies._(
-      vaultViewModel: VaultViewModel(
-        repository: repository,
-        syncVault: syncVault,
-        restoreVault: restoreVault,
-      ),
+      vaultViewModel: vaultViewModel,
       webDavSettingsViewModel: WebDavSettingsViewModel(
         repository: webDavRepository,
+        onConfigurationSaved: vaultViewModel.requestAutoSync,
       ),
     );
   }
