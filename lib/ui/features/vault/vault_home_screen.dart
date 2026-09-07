@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../domain/models/vault_item.dart';
 import '../../core/vault_brand.dart';
+import '../settings/webdav_settings_screen.dart';
 import 'vault_view_model.dart';
 
 class VaultHomeScreen extends StatelessWidget {
@@ -23,6 +24,21 @@ class VaultHomeScreen extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
+          IconButton(
+            tooltip: 'WebDAV 设置',
+            onPressed:
+                viewModel.state == VaultAppState.saving ||
+                    viewModel.vaultId == null
+                ? null
+                : () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          WebDavSettingsScreen(vaultId: viewModel.vaultId!),
+                    ),
+                  ),
+            icon: const Icon(Icons.cloud_sync_outlined),
+          ),
           IconButton(
             tooltip: '锁定',
             onPressed: viewModel.state == VaultAppState.saving

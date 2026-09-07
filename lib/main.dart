@@ -7,5 +7,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final dependencies = await AppDependencies.create();
   await dependencies.vaultViewModel.initialize();
-  runApp(PineVaultApp(viewModel: dependencies.vaultViewModel));
+  runApp(
+    PineVaultApp(
+      vaultViewModel: dependencies.vaultViewModel,
+      webDavSettingsViewModel: dependencies.webDavSettingsViewModel,
+    ),
+  );
 }

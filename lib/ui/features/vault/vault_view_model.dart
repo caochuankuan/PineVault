@@ -25,6 +25,7 @@ class VaultViewModel extends ChangeNotifier {
   VaultAppState get state => _state;
   String? get errorMessage => _errorMessage;
   String get query => _query;
+  String? get vaultId => _repository.vault?.id;
 
   List<VaultItem> get items {
     final allItems = _repository.vault?.items ?? const <VaultItem>[];

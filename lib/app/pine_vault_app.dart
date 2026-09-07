@@ -2,19 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../ui/features/onboarding/setup_screen.dart';
+import '../ui/features/settings/webdav_settings_view_model.dart';
 import '../ui/features/unlock/unlock_screen.dart';
 import '../ui/features/vault/vault_home_screen.dart';
 import '../ui/features/vault/vault_view_model.dart';
 
 class PineVaultApp extends StatelessWidget {
-  const PineVaultApp({super.key, required this.viewModel});
+  const PineVaultApp({
+    super.key,
+    required this.vaultViewModel,
+    required this.webDavSettingsViewModel,
+  });
 
-  final VaultViewModel viewModel;
+  final VaultViewModel vaultViewModel;
+  final WebDavSettingsViewModel webDavSettingsViewModel;
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: viewModel,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: vaultViewModel),
+        ChangeNotifierProvider.value(value: webDavSettingsViewModel),
+      ],
       child: MaterialApp(
         title: 'PineVault',
         debugShowCheckedModeBanner: false,
