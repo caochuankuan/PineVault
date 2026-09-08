@@ -320,12 +320,6 @@ class VaultViewModel extends ChangeNotifier {
 
   void requestAutoSync() => _scheduleSync('配置变更自动同步');
 
-  void onAppResumed() {
-    if (_state == VaultAppState.unlocked) {
-      _scheduleSync('返回前台自动同步', delay: Duration.zero);
-    }
-  }
-
   void setQuery(String value) {
     _query = value;
     notifyListeners();
