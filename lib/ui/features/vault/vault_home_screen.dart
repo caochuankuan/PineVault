@@ -1122,7 +1122,9 @@ class _BatchActionBar extends StatelessWidget {
   }
 
   Future<void> _copyAll(BuildContext context) async {
-    final text = viewModel.selectedItems
+    final selectedItems = viewModel.selectedItems;
+    final selectedCount = selectedItems.length;
+    final text = selectedItems
         .map(
           (item) => [
             '名称：${item.title}',
@@ -1137,7 +1139,7 @@ class _BatchActionBar extends StatelessWidget {
     await Clipboard.setData(ClipboardData(text: text));
     viewModel.exitSelectionMode();
     if (context.mounted) {
-      _showMessage(context, '已复制 ${viewModel.selectedItems.length} 条记录');
+      _showMessage(context, '已复制 $selectedCount 条记录');
     }
   }
 
