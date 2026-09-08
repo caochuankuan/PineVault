@@ -2269,11 +2269,16 @@ class _GroupSelector extends StatelessWidget {
             Icon(Icons.folder_outlined, size: 20),
             const SizedBox(width: 12),
             const Text('分组'),
-            const Spacer(),
-            Text(
-              selected.name,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                selected.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
             const SizedBox(width: 6),
