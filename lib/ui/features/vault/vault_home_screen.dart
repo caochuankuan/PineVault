@@ -194,14 +194,16 @@ class VaultHomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('add-item'),
-        onPressed: viewModel.busy
-            ? null
-            : () => _openEditor(context, viewModel),
-        icon: const Icon(Icons.add),
-        label: const Text('新建'),
-      ),
+      floatingActionButton: viewModel.selectionMode
+          ? null
+          : FloatingActionButton.extended(
+              key: const Key('add-item'),
+              onPressed: viewModel.busy
+                  ? null
+                  : () => _openEditor(context, viewModel),
+              icon: const Icon(Icons.add),
+              label: const Text('新建'),
+            ),
     );
   }
 }
