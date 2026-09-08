@@ -70,7 +70,7 @@
 打开“更多 → 设备验证解锁”，输入当前主密码并完成系统身份验证即可绑定。本机之后会在解锁页显示“使用设备验证解锁”。关闭功能仍在同一菜单操作，主密码始终可以作为回退方式。
 
 - Android 使用认证绑定的 Android Keystore 安全存储。
-- iOS/macOS 使用要求用户在场验证的系统 Keychain；macOS 使用应用默认 Keychain，不配置共享访问组。
+- iOS/macOS 使用要求用户在场验证的系统 Keychain。macOS 自用版使用默认登录 Keychain，并关闭 App Sandbox，从而在 ad-hoc 签名下工作且不配置共享访问组。
 - Windows 使用 Windows Hello 验证和 DPAPI 用户级安全存储。
 
 ## 本地数据
@@ -103,6 +103,7 @@ open build/macos/Build/Products/Release/PineVault.app
 ```
 
 本地 Release 构建使用 ad-hoc 签名，适合个人测试；未配置 Apple Developer Team，也不是可直接提交 App Store 的签名包。
+为使设备验证解锁在无开发者证书的 ad-hoc 构建中使用默认登录 Keychain，macOS Runner 当前关闭了 App Sandbox。若以后分发或提交 App Store，应恢复 Sandbox、启用 Keychain capability，并使用对应开发者签名。
 
 ### Android
 

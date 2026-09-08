@@ -205,7 +205,13 @@ class DeviceUnlockService {
   String _readableStorageError(Object error) {
     if (error is PlatformException) {
       final message = error.message?.trim();
-      if (message != null && message.isNotEmpty) return message;
+      if (error.code == '-34018' || message?.contains('-34018') == true) {
+        return 'macOS 设备安全存储权限未生效，请重新启动应用后再试';
+      }
+      final normalized = message?.toLowerCase() ?? '';
+      if (normalized.contains('cancel') || normalized.contains('canceled')) {
+        return '设备验证已取消';
+      }
     }
     return '设备安全存储不可用，请使用主密码解锁';
   }
