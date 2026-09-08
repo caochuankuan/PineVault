@@ -1536,6 +1536,14 @@ class _ItemViewerState extends State<_ItemViewer> {
                           Icons.notes_outlined,
                           onCopy: () => _copy(widget.item.notes, '备注'),
                         ),
+                      if (widget.item.tags.isNotEmpty)
+                        valueRow(
+                          '标签',
+                          widget.item.tags.join(' · '),
+                          Icons.sell_outlined,
+                          onCopy: () =>
+                              _copy(widget.item.tags.join(', '), '标签'),
+                        ),
                     ],
                   ),
                 ),
@@ -1698,6 +1706,7 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
   late final TextEditingController _password;
   late final TextEditingController _url;
   late final TextEditingController _notes;
+  late final TextEditingController _tags;
   late bool _favorite;
   late String _groupId;
   bool _obscurePassword = true;
@@ -1714,6 +1723,7 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
       text: item == null || item.urls.isEmpty ? '' : item.urls.first,
     );
     _notes = TextEditingController(text: item?.notes ?? '');
+    _tags = TextEditingController(text: item?.tags.join(', ') ?? '');
     _favorite = item?.favorite ?? false;
     _groupId = item?.groupId ?? 'default';
   }
@@ -1725,6 +1735,7 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
     _password.dispose();
     _url.dispose();
     _notes.dispose();
+    _tags.dispose();
     super.dispose();
   }
 
@@ -1863,6 +1874,14 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
                           maxLines: 4,
                           decoration: decoration('备注', Icons.notes_outlined),
                         ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: _tags,
+                          decoration: decoration(
+                            '标签',
+                            Icons.sell_outlined,
+                          ).copyWith(hintText: '多个标签用逗号分隔'),
+                        ),
                         const SizedBox(height: 4),
                         if (widget.viewModel.groups.isNotEmpty) ...[
                           _GroupSelector(
@@ -1957,6 +1976,12 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
       password: _password.text,
       url: _url.text,
       notes: _notes.text,
+      tags: _tags.text
+          .split(',')
+          .map((tag) => tag.trim())
+          .where((tag) => tag.isNotEmpty)
+          .toSet()
+          .toList(growable: false),
       favorite: _favorite,
     );
     if (!mounted) return;

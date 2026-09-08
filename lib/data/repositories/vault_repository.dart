@@ -160,6 +160,7 @@ class VaultRepository {
     required String password,
     required String url,
     required String notes,
+    List<String> tags = const [],
     required bool favorite,
   }) async {
     final vault = _requireVault();
@@ -174,6 +175,7 @@ class VaultRepository {
             password: password,
             urls: url.trim().isEmpty ? const [] : [url.trim()],
             notes: notes,
+            tags: tags,
             favorite: favorite,
             createdAt: now,
             updatedAt: now,
@@ -186,6 +188,7 @@ class VaultRepository {
             password: password,
             urls: url.trim().isEmpty ? const [] : [url.trim()],
             notes: notes,
+            tags: tags,
             favorite: favorite,
             updatedAt: now,
             revision: existing.revision + 1,
@@ -278,6 +281,7 @@ class VaultRepository {
           password: imported.password,
           urls: imported.url.trim().isEmpty ? const [] : [imported.url.trim()],
           notes: imported.notes,
+          tags: imported.tags,
           favorite: imported.favorite,
           createdAt: imported.createdAt,
           updatedAt: imported.updatedAt,

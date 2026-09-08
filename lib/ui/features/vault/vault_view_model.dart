@@ -195,6 +195,7 @@ class VaultViewModel extends ChangeNotifier {
     required String password,
     required String url,
     required String notes,
+    List<String> tags = const [],
     required bool favorite,
   }) async {
     final succeeded = await _runBusy(
@@ -208,6 +209,7 @@ class VaultViewModel extends ChangeNotifier {
         password: password,
         url: url,
         notes: notes,
+        tags: tags,
         favorite: favorite,
       ),
     );

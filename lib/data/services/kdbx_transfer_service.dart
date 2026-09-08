@@ -96,6 +96,9 @@ class KdbxTransferService {
           password: _field(entry, 'Password'),
           url: _field(entry, 'URL'),
           notes: _field(entry, 'Notes'),
+          tags: List.unmodifiable(
+            (entry.tags ?? const []).where((tag) => tag != _favoriteTag),
+          ),
           favorite:
               entry.icon == KdbxIcon.star ||
               (entry.tags?.contains(_favoriteTag) ?? false),
@@ -120,7 +123,7 @@ class KdbxTransferService {
       'Notes': KdbxTextField.fromText(text: item.notes),
     });
     entry.icon = item.favorite ? KdbxIcon.star : KdbxIcon.key;
-    if (item.favorite) entry.tags = const [_favoriteTag];
+    entry.tags = [...item.tags, if (item.favorite) _favoriteTag];
     entry.times = KdbxTimes.fromTime(item.createdAt.toUtc());
     entry.times.modification = KdbxTime(item.updatedAt.toUtc());
   }

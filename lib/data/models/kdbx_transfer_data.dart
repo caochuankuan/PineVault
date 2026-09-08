@@ -12,6 +12,7 @@ class KdbxImportEntry {
     required this.password,
     required this.url,
     required this.notes,
+    this.tags = const [],
     required this.favorite,
     required this.createdAt,
     required this.updatedAt,
@@ -23,6 +24,7 @@ class KdbxImportEntry {
   final String password;
   final String url;
   final String notes;
+  final List<String> tags;
   final bool favorite;
   final DateTime createdAt;
   final DateTime updatedAt;
