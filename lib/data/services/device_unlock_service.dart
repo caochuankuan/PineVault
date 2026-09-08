@@ -139,7 +139,7 @@ class DeviceUnlockService {
         if (rawKey == null) {
           throw const DeviceUnlockException('设备解锁信息已失效，请使用主密码重新绑定');
         }
-        return rawKey;
+        return Uint8List.fromList(rawKey);
       } on DeviceUnlockException {
         rethrow;
       } catch (error) {
