@@ -59,6 +59,8 @@ class VaultViewModel extends ChangeNotifier {
   VaultSortOrder _sortOrder = VaultSortOrder.name;
   bool _sortReversed = false;
   String _selectedGroupId = 'all';
+  bool _selectionMode = false;
+  final Set<String> _selectedItemIds = <String>{};
 
   VaultAppState get state => _state;
   String? get errorMessage => _errorMessage;
@@ -73,6 +75,12 @@ class VaultViewModel extends ChangeNotifier {
   bool get sortReversed => _sortReversed;
   List<VaultGroup> get groups => _repository.vault?.groups ?? const [];
   String get selectedGroupId => _selectedGroupId;
+  bool get selectionMode => _selectionMode;
+  Set<String> get selectedItemIds => Set.unmodifiable(_selectedItemIds);
+  List<VaultItem> get selectedItems => [
+    for (final item in _repository.vault?.items ?? const <VaultItem>[])
+      if (_selectedItemIds.contains(item.id)) item,
+  ];
   bool get busy =>
       _state == VaultAppState.saving || _state == VaultAppState.syncing;
 
@@ -329,6 +337,81 @@ class VaultViewModel extends ChangeNotifier {
     if (_selectedGroupId == groupId) return;
     _selectedGroupId = groupId;
     notifyListeners();
+  }
+
+  void startSelectionMode() {
+    _selectionMode = true;
+    _selectedItemIds.clear();
+    notifyListeners();
+  }
+
+  void toggleItemSelection(String id) {
+    if (!_selectionMode) return;
+    if (!_selectedItemIds.add(id)) _selectedItemIds.remove(id);
+    notifyListeners();
+  }
+
+  void selectAllItems() {
+    _selectedItemIds
+      ..clear()
+      ..addAll(items.map((item) => item.id));
+    notifyListeners();
+  }
+
+  void clearItemSelection() {
+    _selectedItemIds.clear();
+    notifyListeners();
+  }
+
+  void exitSelectionMode() {
+    _selectionMode = false;
+    _selectedItemIds.clear();
+    notifyListeners();
+  }
+
+  Future<bool> batchDelete() async {
+    final ids = Set<String>.from(_selectedItemIds);
+    if (ids.isEmpty) return false;
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.saving,
+      fallbackState: VaultAppState.unlocked,
+      operation: () => _repository.deleteItems(ids),
+    );
+    if (succeeded) {
+      exitSelectionMode();
+      _scheduleSync('批量删除后自动同步');
+    }
+    return succeeded;
+  }
+
+  Future<bool> batchSetFavorite(bool favorite) async {
+    final ids = Set<String>.from(_selectedItemIds);
+    if (ids.isEmpty) return false;
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.saving,
+      fallbackState: VaultAppState.unlocked,
+      operation: () => _repository.updateItems(ids, favorite: favorite),
+    );
+    if (succeeded) {
+      exitSelectionMode();
+      _scheduleSync('批量收藏变更后自动同步');
+    }
+    return succeeded;
+  }
+
+  Future<bool> batchMoveToGroup(String groupId) async {
+    final ids = Set<String>.from(_selectedItemIds);
+    if (ids.isEmpty) return false;
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.saving,
+      fallbackState: VaultAppState.unlocked,
+      operation: () => _repository.updateItems(ids, groupId: groupId),
+    );
+    if (succeeded) {
+      exitSelectionMode();
+      _scheduleSync('批量移动分组后自动同步');
+    }
+    return succeeded;
   }
 
   Future<bool> createGroup(String name) async {

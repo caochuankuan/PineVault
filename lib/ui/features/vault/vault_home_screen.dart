@@ -64,6 +64,14 @@ class VaultHomeScreen extends StatelessWidget {
                 child: const _MenuRow(icon: Icons.key_outlined, label: '修改主密码'),
               ),
               const PopupMenuDivider(),
+              PopupMenuItem(
+                value: _VaultMenuAction.multiSelect,
+                enabled: !viewModel.busy,
+                child: const _MenuRow(
+                  icon: Icons.checklist_outlined,
+                  label: '多选操作',
+                ),
+              ),
               const PopupMenuItem(
                 value: _VaultMenuAction.importKdbx,
                 child: _MenuRow(
@@ -205,6 +213,7 @@ enum _VaultMenuAction {
   changeMasterPassword,
   importKdbx,
   exportKdbx,
+  multiSelect,
   lock,
   togglePasswords,
   toggleWebsites,
@@ -263,6 +272,8 @@ Future<void> _handleMenu(BuildContext context, _VaultMenuAction action) async {
       await _importKdbx(context, viewModel);
     case _VaultMenuAction.exportKdbx:
       await _exportKdbx(context, viewModel);
+    case _VaultMenuAction.multiSelect:
+      viewModel.startSelectionMode();
     case _VaultMenuAction.lock:
       viewModel.lock();
     case _VaultMenuAction.togglePasswords:
@@ -872,6 +883,31 @@ class _VaultList extends StatelessWidget {
             ),
           ),
         ),
+        if (viewModel.selectionMode)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                Text('已选择 ${viewModel.selectedItemIds.length} 项'),
+                const Spacer(),
+                TextButton(
+                  onPressed: viewModel.items.isEmpty
+                      ? null
+                      : viewModel.selectAllItems,
+                  child: const Text('全选'),
+                ),
+                TextButton(
+                  onPressed: viewModel.clearItemSelection,
+                  child: const Text('清除'),
+                ),
+                IconButton(
+                  tooltip: '退出多选',
+                  onPressed: viewModel.exitSelectionMode,
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
         SizedBox(
           height: 44,
           child: ListView(
@@ -932,8 +968,12 @@ class _VaultList extends StatelessWidget {
                       ),
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTap: () => _openViewer(context, viewModel, item),
-                        onLongPress: () => _showItemActions(context, item),
+                        onTap: viewModel.selectionMode
+                            ? () => viewModel.toggleItemSelection(item.id)
+                            : () => _openViewer(context, viewModel, item),
+                        onLongPress: viewModel.selectionMode
+                            ? null
+                            : () => _showItemActions(context, item),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -941,13 +981,25 @@ class _VaultList extends StatelessWidget {
                           ),
                           child: Row(
                             children: [
-                              CircleAvatar(
-                                child: Text(
-                                  item.title.isEmpty
-                                      ? '?'
-                                      : item.title[0].toUpperCase(),
+                              if (viewModel.selectionMode)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: Checkbox(
+                                    value: viewModel.selectedItemIds.contains(
+                                      item.id,
+                                    ),
+                                    onChanged: (_) =>
+                                        viewModel.toggleItemSelection(item.id),
+                                  ),
+                                )
+                              else
+                                CircleAvatar(
+                                  child: Text(
+                                    item.title.isEmpty
+                                        ? '?'
+                                        : item.title[0].toUpperCase(),
+                                  ),
                                 ),
-                              ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
@@ -980,8 +1032,135 @@ class _VaultList extends StatelessWidget {
                   },
                 ),
         ),
+        if (viewModel.selectionMode && viewModel.selectedItemIds.isNotEmpty)
+          _BatchActionBar(viewModel: viewModel),
       ],
     );
+  }
+}
+
+class _BatchActionBar extends StatelessWidget {
+  const _BatchActionBar({required this.viewModel});
+
+  final VaultViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          border: Border(
+            top: BorderSide(color: theme.colorScheme.outlineVariant),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            IconButton(
+              tooltip: '收藏/取消收藏',
+              onPressed: viewModel.busy ? null : () => _toggleFavorite(context),
+              icon: const Icon(Icons.star_outline),
+            ),
+            IconButton(
+              tooltip: '移动分组',
+              onPressed: viewModel.busy ? null : () => _moveGroup(context),
+              icon: const Icon(Icons.drive_file_move_outlined),
+            ),
+            IconButton(
+              tooltip: '复制全部',
+              onPressed: () => _copyAll(context),
+              icon: const Icon(Icons.copy_all_outlined),
+            ),
+            IconButton(
+              tooltip: '删除',
+              onPressed: viewModel.busy ? null : () => _delete(context),
+              icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggleFavorite(BuildContext context) async {
+    final allFavorite = viewModel.selectedItems.every((item) => item.favorite);
+    final ok = await viewModel.batchSetFavorite(!allFavorite);
+    if (context.mounted && ok) {
+      _showMessage(context, allFavorite ? '已取消收藏' : '已收藏');
+    }
+  }
+
+  Future<void> _moveGroup(BuildContext context) async {
+    final groupId = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.only(bottom: 12),
+          children: [
+            const ListTile(title: Text('移动到分组')),
+            for (final group in viewModel.groups)
+              ListTile(
+                leading: const Icon(Icons.folder_outlined),
+                title: Text(group.name),
+                onTap: () => Navigator.pop(context, group.id),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (groupId == null || !context.mounted) return;
+    final ok = await viewModel.batchMoveToGroup(groupId);
+    if (context.mounted && ok) _showMessage(context, '已移动到分组');
+  }
+
+  Future<void> _copyAll(BuildContext context) async {
+    final text = viewModel.selectedItems
+        .map(
+          (item) => [
+            '名称：${item.title}',
+            '账号：${item.username}',
+            '密码：${item.password}',
+            '网站：${item.urls.isEmpty ? '' : item.urls.first}',
+            '备注：${item.notes}',
+            if (item.tags.isNotEmpty) '标签：${item.tags.join(', ')}',
+          ].join('\n'),
+        )
+        .join('\n\n');
+    await Clipboard.setData(ClipboardData(text: text));
+    viewModel.exitSelectionMode();
+    if (context.mounted) {
+      _showMessage(context, '已复制 ${viewModel.selectedItems.length} 条记录');
+    }
+  }
+
+  Future<void> _delete(BuildContext context) async {
+    final count = viewModel.selectedItemIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('删除 $count 条记录？'),
+        content: const Text('删除后会自动同步到其他设备。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final ok = await viewModel.batchDelete();
+    if (context.mounted && ok) _showMessage(context, '已删除 $count 条记录');
   }
 }
 

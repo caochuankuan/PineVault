@@ -316,6 +316,44 @@ class VaultRepository {
     );
   }
 
+  Future<void> deleteItems(Iterable<String> ids) async {
+    final selected = ids.toSet();
+    if (selected.isEmpty) return;
+    final vault = _requireVault();
+    final now = DateTime.now().toUtc();
+    final items = vault.items.where((item) => !selected.contains(item.id));
+    await _save(
+      vault.copyWith(
+        updatedAt: now,
+        items: items.toList(growable: false),
+        tombstones: {...vault.tombstones, ...selected}.toList(growable: false),
+      ),
+    );
+  }
+
+  Future<void> updateItems(
+    Iterable<String> ids, {
+    bool? favorite,
+    String? groupId,
+  }) async {
+    final selected = ids.toSet();
+    if (selected.isEmpty) return;
+    final vault = _requireVault();
+    final now = DateTime.now().toUtc();
+    final items = [
+      for (final item in vault.items)
+        selected.contains(item.id)
+            ? item.copyWith(
+                favorite: favorite,
+                groupId: groupId,
+                updatedAt: now,
+                revision: item.revision + 1,
+              )
+            : item,
+    ];
+    await _save(vault.copyWith(updatedAt: now, items: items));
+  }
+
   Future<void> saveWebDavCredentials(WebDavCredentials credentials) async {
     final vault = _requireVault();
     await _save(
