@@ -145,6 +145,16 @@ class VaultHomeScreen extends StatelessWidget {
                 ),
               ),
               PopupMenuItem(
+                value: _VaultMenuAction.toggleTotp,
+                child: _MenuRow(
+                  icon: viewModel.showTotp
+                      ? Icons.timer_outlined
+                      : Icons.timer_off_outlined,
+                  label: viewModel.showTotp ? '隐藏 TOTP' : '显示 TOTP',
+                  active: viewModel.showTotp,
+                ),
+              ),
+              PopupMenuItem(
                 value: _VaultMenuAction.sortByTime,
                 child: _MenuRow(
                   icon:
@@ -253,6 +263,7 @@ enum _VaultMenuAction {
   lock,
   togglePasswords,
   toggleWebsites,
+  toggleTotp,
   sortByTime,
   sortByName,
 }
@@ -327,6 +338,8 @@ Future<void> _handleMenu(BuildContext context, _VaultMenuAction action) async {
       viewModel.setShowPasswords(!viewModel.showPasswords);
     case _VaultMenuAction.toggleWebsites:
       viewModel.setShowWebsites(!viewModel.showWebsites);
+    case _VaultMenuAction.toggleTotp:
+      viewModel.setShowTotp(!viewModel.showTotp);
     case _VaultMenuAction.sortByTime:
       viewModel.setSortOrder(VaultSortOrder.time);
     case _VaultMenuAction.sortByName:
@@ -1093,10 +1106,11 @@ class _VaultList extends StatelessWidget {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 3),
-                                    Text(
-                                      details,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                    _HomeItemDetails(
+                                      details: details,
+                                      totp: viewModel.showTotp
+                                          ? item.totp
+                                          : null,
                                     ),
                                   ],
                                 ),
@@ -1118,6 +1132,63 @@ class _VaultList extends StatelessWidget {
           _BatchActionBar(viewModel: viewModel),
       ],
     );
+  }
+}
+
+class _HomeItemDetails extends StatefulWidget {
+  const _HomeItemDetails({required this.details, this.totp});
+
+  final String details;
+  final TotpConfig? totp;
+
+  @override
+  State<_HomeItemDetails> createState() => _HomeItemDetailsState();
+}
+
+class _HomeItemDetailsState extends State<_HomeItemDetails> {
+  static const _totpService = TotpService();
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleRefresh();
+  }
+
+  @override
+  void didUpdateWidget(covariant _HomeItemDetails oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.totp != widget.totp) _scheduleRefresh();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleRefresh() {
+    _timer?.cancel();
+    final config = widget.totp;
+    if (config == null) return;
+    final now = DateTime.now();
+    final milliseconds = now.toUtc().millisecondsSinceEpoch;
+    final periodMilliseconds = config.period * 1000;
+    final delay = periodMilliseconds - (milliseconds % periodMilliseconds);
+    _timer = Timer(Duration(milliseconds: delay + 50), () {
+      if (!mounted) return;
+      setState(() {});
+      _scheduleRefresh();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final config = widget.totp;
+    final text = config == null
+        ? widget.details
+        : '${widget.details} · ${_totpService.generate(config)}';
+    return Text(text, maxLines: 1, overflow: TextOverflow.ellipsis);
   }
 }
 

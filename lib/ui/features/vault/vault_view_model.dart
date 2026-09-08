@@ -61,6 +61,7 @@ class VaultViewModel extends ChangeNotifier {
   String _query = '';
   bool _showPasswords = false;
   bool _showWebsites = false;
+  bool _showTotp = false;
   VaultSortOrder _sortOrder = VaultSortOrder.name;
   bool _sortReversed = false;
   String _selectedGroupId = 'all';
@@ -79,6 +80,7 @@ class VaultViewModel extends ChangeNotifier {
   String get query => _query;
   bool get showPasswords => _showPasswords;
   bool get showWebsites => _showWebsites;
+  bool get showTotp => _showTotp;
   VaultSortOrder get sortOrder => _sortOrder;
   bool get sortReversed => _sortReversed;
   List<VaultGroup> get groups => _repository.vault?.groups ?? const [];
@@ -140,6 +142,12 @@ class VaultViewModel extends ChangeNotifier {
   void setShowWebsites(bool value) {
     if (_showWebsites == value) return;
     _showWebsites = value;
+    notifyListeners();
+  }
+
+  void setShowTotp(bool value) {
+    if (_showTotp == value) return;
+    _showTotp = value;
     notifyListeners();
   }
 
