@@ -28,6 +28,21 @@ class _UnlockScreenState extends State<UnlockScreen> {
   final _formKey = GlobalKey<FormState>();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _autoUnlockRequested = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestAutomaticDeviceUnlock();
+  }
+
+  @override
+  void didUpdateWidget(UnlockScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.deviceUnlockEnabled && widget.deviceUnlockEnabled) {
+      _requestAutomaticDeviceUnlock();
+    }
+  }
 
   @override
   void dispose() {
@@ -124,5 +139,13 @@ class _UnlockScreenState extends State<UnlockScreen> {
   Future<void> _submit() async {
     if (widget.busy || !(_formKey.currentState?.validate() ?? false)) return;
     await widget.onUnlock(_passwordController.text);
+  }
+
+  void _requestAutomaticDeviceUnlock() {
+    if (_autoUnlockRequested || !widget.deviceUnlockEnabled) return;
+    _autoUnlockRequested = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !widget.busy) widget.onDeviceUnlock();
+    });
   }
 }
