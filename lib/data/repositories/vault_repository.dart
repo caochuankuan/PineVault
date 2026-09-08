@@ -124,7 +124,7 @@ class VaultRepository {
     final now = DateTime.now().toUtc();
     final vault = Vault(
       id: _uuid.v4(),
-      schemaVersion: 1,
+      schemaVersion: 3,
       createdAt: now,
       updatedAt: now,
       items: const [],
@@ -132,6 +132,7 @@ class VaultRepository {
         VaultGroup(id: 'default', name: '未分组', createdAt: now, updatedAt: now),
       ],
       tombstones: const [],
+      groupOrderUpdatedAt: now,
     );
     final created = _cryptoService.createVault(
       masterPassword: masterPassword,
@@ -253,7 +254,80 @@ class VaultRepository {
       updatedAt: now,
     );
     await _save(
-      vault.copyWith(updatedAt: now, groups: [...vault.groups, group]),
+      vault.copyWith(
+        updatedAt: now,
+        groups: [...vault.groups, group],
+        groupOrderUpdatedAt: now,
+      ),
+    );
+  }
+
+  Future<void> renameGroup(String groupId, String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) throw const FormatException('分组名称不能为空');
+    if (groupId == 'default') {
+      throw const FormatException('默认分组不能重命名');
+    }
+    final vault = _requireVault();
+    final index = vault.groups.indexWhere((group) => group.id == groupId);
+    if (index == -1) throw const FormatException('分组不存在');
+    if (vault.groups.any(
+      (group) => group.id != groupId && group.name == trimmed,
+    )) {
+      throw const FormatException('分组名称已存在');
+    }
+    final now = DateTime.now().toUtc();
+    final groups = [...vault.groups];
+    groups[index] = groups[index].copyWith(name: trimmed, updatedAt: now);
+    await _save(vault.copyWith(updatedAt: now, groups: groups));
+  }
+
+  Future<void> deleteGroup(String groupId) async {
+    if (groupId == 'default') {
+      throw const FormatException('默认分组不能删除');
+    }
+    final vault = _requireVault();
+    if (!vault.groups.any((group) => group.id == groupId)) {
+      throw const FormatException('分组不存在');
+    }
+    final now = DateTime.now().toUtc();
+    final items = [
+      for (final item in vault.items)
+        item.groupId == groupId
+            ? item.copyWith(
+                groupId: 'default',
+                updatedAt: now,
+                revision: item.revision + 1,
+              )
+            : item,
+    ];
+    await _save(
+      vault.copyWith(
+        updatedAt: now,
+        items: items,
+        groups: vault.groups.where((group) => group.id != groupId).toList(),
+        groupTombstones: {...vault.groupTombstones, groupId}.toList(),
+        groupOrderUpdatedAt: now,
+      ),
+    );
+  }
+
+  Future<void> reorderGroups(int oldIndex, int newIndex) async {
+    final vault = _requireVault();
+    final groups = [...vault.groups];
+    if (oldIndex < 0 ||
+        oldIndex >= groups.length ||
+        newIndex < 0 ||
+        newIndex >= groups.length ||
+        oldIndex == newIndex) {
+      return;
+    }
+    if (oldIndex == 0 || newIndex == 0) return;
+    final group = groups.removeAt(oldIndex);
+    groups.insert(newIndex, group);
+    final now = DateTime.now().toUtc();
+    await _save(
+      vault.copyWith(updatedAt: now, groups: groups, groupOrderUpdatedAt: now),
     );
   }
 

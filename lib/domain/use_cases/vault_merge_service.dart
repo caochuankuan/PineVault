@@ -69,17 +69,35 @@ class VaultMergeService {
       }
     }
 
-    items.sort((a, b) => a.id.compareTo(b.id));
+    final groups = _mergeGroups(local, remote);
+    final groupIds = groups.map((group) => group.id).toSet();
+    final normalizedItems = [
+      for (final item in items)
+        groupIds.contains(item.groupId)
+            ? item
+            : item.copyWith(
+                groupId: 'default',
+                updatedAt: DateTime.now().toUtc(),
+                revision: item.revision + 1,
+              ),
+    ];
+    normalizedItems.sort((a, b) => a.id.compareTo(b.id));
     final sortedTombstones = tombstones.toList()..sort();
+    final groupTombstones = {
+      ...local.groupTombstones,
+      ...remote.groupTombstones,
+    }.toList()..sort();
     return VaultMergeResult(
       vault: Vault(
         id: local.id,
         schemaVersion: local.schemaVersion,
         createdAt: local.createdAt,
         updatedAt: DateTime.now().toUtc(),
-        items: List.unmodifiable(items),
+        items: List.unmodifiable(normalizedItems),
         tombstones: List.unmodifiable(sortedTombstones),
-        groups: _mergeGroups(local.groups, remote.groups),
+        groups: List.unmodifiable(groups),
+        groupTombstones: List.unmodifiable(groupTombstones),
+        groupOrderUpdatedAt: _groupOrderUpdatedAt(local, remote),
         webDavCredentials: local.webDavCredentials ?? remote.webDavCredentials,
       ),
       conflictCount: conflicts,
@@ -101,16 +119,50 @@ class VaultMergeService {
         leftCredentials.password == rightCredentials.password;
   }
 
-  List<VaultGroup> _mergeGroups(
-    List<VaultGroup> local,
-    List<VaultGroup> remote,
-  ) {
+  List<VaultGroup> _mergeGroups(Vault local, Vault remote) {
     final byId = <String, VaultGroup>{
-      for (final group in remote) group.id: group,
-      for (final group in local) group.id: group,
+      for (final group in local.groups) group.id: group,
     };
-    return byId.values.toList(growable: false)
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    for (final group in remote.groups) {
+      final previous = byId[group.id];
+      if (previous == null || group.updatedAt.isAfter(previous.updatedAt)) {
+        byId[group.id] = group;
+      }
+    }
+    final deleted = {...local.groupTombstones, ...remote.groupTombstones};
+    final preferredOrder =
+        _groupOrderUpdatedAt(local, remote) == remote.groupOrderUpdatedAt
+        ? remote.groups
+        : local.groups;
+    final result = <VaultGroup>[];
+    for (final group in preferredOrder) {
+      final merged = byId[group.id];
+      if (merged != null && !deleted.contains(merged.id)) result.add(merged);
+    }
+    final present = result.map((group) => group.id).toSet();
+    final remaining =
+        byId.values
+            .where(
+              (group) =>
+                  !deleted.contains(group.id) && !present.contains(group.id),
+            )
+            .toList()
+          ..sort((a, b) {
+            final created = a.createdAt.compareTo(b.createdAt);
+            return created != 0 ? created : a.id.compareTo(b.id);
+          });
+    result.addAll(remaining);
+    final defaultGroups = result.where((group) => group.id == 'default');
+    final otherGroups = result.where((group) => group.id != 'default');
+    return [...defaultGroups, ...otherGroups];
+  }
+
+  DateTime? _groupOrderUpdatedAt(Vault local, Vault remote) {
+    final localTime = local.groupOrderUpdatedAt;
+    final remoteTime = remote.groupOrderUpdatedAt;
+    if (localTime == null) return remoteTime;
+    if (remoteTime == null) return localTime;
+    return remoteTime.isAfter(localTime) ? remoteTime : localTime;
   }
 
   void _addConflict(

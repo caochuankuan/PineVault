@@ -11,6 +11,8 @@ class Vault {
     required this.items,
     this.groups = const [],
     required this.tombstones,
+    this.groupTombstones = const [],
+    this.groupOrderUpdatedAt,
     this.webDavCredentials,
   });
 
@@ -21,6 +23,8 @@ class Vault {
   final List<VaultItem> items;
   final List<VaultGroup> groups;
   final List<String> tombstones;
+  final List<String> groupTombstones;
+  final DateTime? groupOrderUpdatedAt;
   final WebDavCredentials? webDavCredentials;
 
   factory Vault.fromJson(Map<String, dynamic> json) {
@@ -43,8 +47,8 @@ class Vault {
               .toList(growable: false);
     return Vault(
       id: json['id'] as String,
-      schemaVersion: (json['schemaVersion'] as int? ?? 1) < 2
-          ? 2
+      schemaVersion: (json['schemaVersion'] as int? ?? 1) < 3
+          ? 3
           : json['schemaVersion'] as int,
       createdAt: createdAt,
       updatedAt: updatedAt,
@@ -57,6 +61,12 @@ class Vault {
       tombstones: List.unmodifiable(
         (json['tombstones'] as List<dynamic>).cast<String>(),
       ),
+      groupTombstones: List.unmodifiable(
+        (json['groupTombstones'] as List<dynamic>? ?? const []).cast<String>(),
+      ),
+      groupOrderUpdatedAt: json['groupOrderUpdatedAt'] == null
+          ? updatedAt
+          : DateTime.parse(json['groupOrderUpdatedAt'] as String),
       webDavCredentials: _webDavCredentials(json['webDav']),
     );
   }
@@ -69,6 +79,9 @@ class Vault {
     'items': items.map((item) => item.toJson()).toList(growable: false),
     'groups': groups.map((group) => group.toJson()).toList(growable: false),
     'tombstones': tombstones,
+    'groupTombstones': groupTombstones,
+    if (groupOrderUpdatedAt case final value?)
+      'groupOrderUpdatedAt': value.toUtc().toIso8601String(),
     if (webDavCredentials case final credentials?)
       'webDav': {
         'serverUrl': credentials.serverUri.toString(),
@@ -82,17 +95,23 @@ class Vault {
     List<VaultItem>? items,
     List<VaultGroup>? groups,
     List<String>? tombstones,
+    List<String>? groupTombstones,
+    DateTime? groupOrderUpdatedAt,
     WebDavCredentials? webDavCredentials,
     bool clearWebDavCredentials = false,
   }) {
     return Vault(
       id: id,
-      schemaVersion: 2,
+      schemaVersion: 3,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       items: List.unmodifiable(items ?? this.items),
       groups: List.unmodifiable(groups ?? this.groups),
       tombstones: List.unmodifiable(tombstones ?? this.tombstones),
+      groupTombstones: List.unmodifiable(
+        groupTombstones ?? this.groupTombstones,
+      ),
+      groupOrderUpdatedAt: groupOrderUpdatedAt ?? this.groupOrderUpdatedAt,
       webDavCredentials: clearWebDavCredentials
           ? null
           : webDavCredentials ?? this.webDavCredentials,

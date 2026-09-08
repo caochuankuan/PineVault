@@ -81,6 +81,11 @@ class VaultViewModel extends ChangeNotifier {
   VaultSortOrder get sortOrder => _sortOrder;
   bool get sortReversed => _sortReversed;
   List<VaultGroup> get groups => _repository.vault?.groups ?? const [];
+  int itemCountForGroup(String groupId) =>
+      _repository.vault?.items
+          .where((item) => item.groupId == groupId)
+          .length ??
+      0;
   String get selectedGroupId => _selectedGroupId;
   bool get selectionMode => _selectionMode;
   bool get deviceUnlockSupported => _deviceUnlockSupported;
@@ -503,6 +508,40 @@ class VaultViewModel extends ChangeNotifier {
       operation: () => _repository.createGroup(name),
     );
     if (succeeded) _scheduleSync('分组变更自动同步');
+    return succeeded;
+  }
+
+  Future<bool> renameGroup(String groupId, String name) async {
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.saving,
+      fallbackState: VaultAppState.unlocked,
+      operation: () => _repository.renameGroup(groupId, name),
+    );
+    if (succeeded) _scheduleSync('分组重命名后自动同步');
+    return succeeded;
+  }
+
+  Future<bool> deleteGroup(String groupId) async {
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.saving,
+      fallbackState: VaultAppState.unlocked,
+      operation: () => _repository.deleteGroup(groupId),
+    );
+    if (succeeded) {
+      if (_selectedGroupId == groupId) _selectedGroupId = 'all';
+      _scheduleSync('分组删除后自动同步');
+    }
+    return succeeded;
+  }
+
+  Future<bool> reorderGroups(int oldIndex, int newIndex) async {
+    if (oldIndex < newIndex) newIndex -= 1;
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.saving,
+      fallbackState: VaultAppState.unlocked,
+      operation: () => _repository.reorderGroups(oldIndex, newIndex),
+    );
+    if (succeeded) _scheduleSync('分组排序后自动同步');
     return succeeded;
   }
 
