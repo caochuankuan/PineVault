@@ -1387,7 +1387,12 @@ Future<void> _openViewer(
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ItemViewer(viewModel: viewModel, item: item),
+      builder: (context) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.92,
+        ),
+        child: _ItemViewer(viewModel: viewModel, item: item),
+      ),
     );
   } else {
     action = await showDialog<_ViewerAction>(
@@ -1536,6 +1541,7 @@ class _ItemViewerState extends State<_ItemViewer> {
         child: Padding(
           padding: EdgeInsets.fromLTRB(20, compact ? 12 : 20, 20, 12),
           child: Column(
+            mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
             children: [
               if (compact)
                 Container(
@@ -1587,7 +1593,8 @@ class _ItemViewerState extends State<_ItemViewer> {
                 ],
               ),
               const SizedBox(height: 16),
-              Expanded(
+              Flexible(
+                fit: compact ? FlexFit.loose : FlexFit.tight,
                 child: SingleChildScrollView(
                   padding: EdgeInsets.only(
                     bottom: MediaQuery.viewInsetsOf(context).bottom + 8,
