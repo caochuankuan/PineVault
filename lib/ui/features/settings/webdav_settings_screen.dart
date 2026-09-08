@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_feedback.dart';
 import 'webdav_settings_view_model.dart';
 
 class WebDavSettingsScreen extends StatefulWidget {
@@ -189,9 +190,7 @@ class _WebDavSettingsScreenState extends State<WebDavSettingsScreen> {
     );
     if (!mounted || !succeeded) return;
     _passwordController.clear();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('连接成功，配置已安全保存')));
+    showAppMessage(context, '连接成功，配置已安全保存');
   }
 
   Future<void> _confirmClear() async {
@@ -218,8 +217,6 @@ class _WebDavSettingsScreenState extends State<WebDavSettingsScreen> {
     _serverController.text = _defaultServerUrl;
     _usernameController.clear();
     _passwordController.clear();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('WebDAV 配置已删除')));
+    showAppMessage(context, 'WebDAV 配置已删除');
   }
 }

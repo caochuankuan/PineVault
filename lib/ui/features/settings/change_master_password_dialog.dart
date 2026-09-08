@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_feedback.dart';
 import '../vault/vault_view_model.dart';
 
 class ChangeMasterPasswordDialog extends StatefulWidget {
@@ -164,14 +165,10 @@ class _ChangeMasterPasswordDialogState
     if (!mounted) return;
     if (succeeded) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('主密码已修改')));
+      showAppMessage(context, '主密码已修改');
     } else {
       setState(() => _busy = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(viewModel.errorMessage ?? '修改失败')));
+      showAppMessage(context, viewModel.errorMessage ?? '修改失败');
     }
   }
 }

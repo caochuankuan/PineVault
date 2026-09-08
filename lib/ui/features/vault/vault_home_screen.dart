@@ -8,6 +8,7 @@ import '../../../data/models/kdbx_transfer_data.dart';
 import '../../../domain/models/vault_item.dart';
 import '../../../domain/models/vault_group.dart';
 import '../../core/vault_brand.dart';
+import '../../core/app_feedback.dart';
 import '../settings/change_master_password_dialog.dart';
 import '../settings/sync_history_screen.dart';
 import '../settings/webdav_settings_screen.dart';
@@ -667,9 +668,7 @@ Future<void> _exportKdbx(BuildContext context, VaultViewModel viewModel) async {
 String _twoDigits(int value) => value.toString().padLeft(2, '0');
 
 void _showMessage(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message)));
+  showAppMessage(context, message);
 }
 
 enum _KdbxPasswordMode { import, export }
@@ -832,9 +831,7 @@ Future<void> _sync(BuildContext context, VaultViewModel viewModel) async {
   final succeeded = await viewModel.sync();
   if (!context.mounted) return;
   final message = succeeded ? viewModel.syncMessage : viewModel.errorMessage;
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(message ?? '同步失败，请重试')));
+  showAppMessage(context, message ?? '同步失败，请重试');
 }
 
 class _VaultList extends StatelessWidget {
@@ -1203,9 +1200,7 @@ Future<void> _createGroup(
   if (name == null || !context.mounted) return;
   final created = await viewModel.createGroup(name);
   if (!context.mounted || created) return;
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(viewModel.errorMessage ?? '创建分组失败')));
+  showAppMessage(context, viewModel.errorMessage ?? '创建分组失败');
 }
 
 enum _ItemAction { all, username, password, website, notes, openWebsite }
@@ -1297,9 +1292,7 @@ Future<void> _copyItemText(
 ) async {
   await Clipboard.setData(ClipboardData(text: value));
   if (!context.mounted) return;
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text('$label已复制')));
+  showAppMessage(context, '$label已复制');
 }
 
 Future<void> _launchWebsite(BuildContext context, String value) async {
@@ -1309,17 +1302,13 @@ Future<void> _launchWebsite(BuildContext context, String value) async {
   );
   if (uri == null || uri.host.isEmpty) {
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('网站地址无效')));
+      showAppMessage(context, '网站地址无效');
     }
     return;
   }
   final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
   if (!opened && context.mounted) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('无法打开网站')));
+    showAppMessage(context, '无法打开网站');
   }
 }
 
@@ -1868,9 +1857,7 @@ class _ItemViewerState extends State<_ItemViewer> {
       Navigator.pop(context);
     } else {
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(widget.viewModel.errorMessage ?? '删除失败，请重试')),
-      );
+      showAppMessage(context, widget.viewModel.errorMessage ?? '删除失败，请重试');
     }
   }
 }
@@ -2194,9 +2181,7 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
   }
 
   void _showError() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(widget.viewModel.errorMessage ?? '操作失败，请重试')),
-    );
+    showAppMessage(context, widget.viewModel.errorMessage ?? '操作失败，请重试');
   }
 }
 
