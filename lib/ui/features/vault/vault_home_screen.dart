@@ -1106,12 +1106,16 @@ class _VaultList extends StatelessWidget {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 3),
-                                    _HomeItemDetails(
-                                      details: details,
-                                      totp: viewModel.showTotp
-                                          ? item.totp
-                                          : null,
+                                    Text(
+                                      details,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
+                                    if (viewModel.showTotp &&
+                                        item.totp != null) ...[
+                                      const SizedBox(height: 7),
+                                      _HomeTotpLine(config: item.totp!),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -1135,30 +1139,26 @@ class _VaultList extends StatelessWidget {
   }
 }
 
-class _HomeItemDetails extends StatefulWidget {
-  const _HomeItemDetails({required this.details, this.totp});
+class _HomeTotpLine extends StatefulWidget {
+  const _HomeTotpLine({required this.config});
 
-  final String details;
-  final TotpConfig? totp;
+  final TotpConfig config;
 
   @override
-  State<_HomeItemDetails> createState() => _HomeItemDetailsState();
+  State<_HomeTotpLine> createState() => _HomeTotpLineState();
 }
 
-class _HomeItemDetailsState extends State<_HomeItemDetails> {
+class _HomeTotpLineState extends State<_HomeTotpLine> {
   static const _totpService = TotpService();
   Timer? _timer;
+  DateTime _now = DateTime.now();
 
   @override
   void initState() {
     super.initState();
-    _scheduleRefresh();
-  }
-
-  @override
-  void didUpdateWidget(covariant _HomeItemDetails oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.totp != widget.totp) _scheduleRefresh();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
   }
 
   @override
@@ -1167,28 +1167,58 @@ class _HomeItemDetailsState extends State<_HomeItemDetails> {
     super.dispose();
   }
 
-  void _scheduleRefresh() {
-    _timer?.cancel();
-    final config = widget.totp;
-    if (config == null) return;
-    final now = DateTime.now();
-    final milliseconds = now.toUtc().millisecondsSinceEpoch;
-    final periodMilliseconds = config.period * 1000;
-    final delay = periodMilliseconds - (milliseconds % periodMilliseconds);
-    _timer = Timer(Duration(milliseconds: delay + 50), () {
-      if (!mounted) return;
-      setState(() {});
-      _scheduleRefresh();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    final config = widget.totp;
-    final text = config == null
-        ? widget.details
-        : '${widget.details} · ${_totpService.generate(config)}';
-    return Text(text, maxLines: 1, overflow: TextOverflow.ellipsis);
+    final theme = Theme.of(context);
+    final code = _totpService.generate(widget.config, time: _now);
+    final remaining = _totpService.remainingSeconds(widget.config, time: _now);
+    final split = code.length ~/ 2;
+    final displayCode = '${code.substring(0, split)} ${code.substring(split)}';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 5, 4, 5),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.timer_outlined,
+            size: 16,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            displayCode,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: LinearProgressIndicator(
+              value: remaining / widget.config.period,
+              minHeight: 3,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text('$remaining 秒', style: theme.textTheme.labelSmall),
+          IconButton(
+            tooltip: '复制动态验证码',
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 30, minHeight: 28),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: code));
+              if (context.mounted) showAppMessage(context, '动态验证码已复制');
+            },
+            icon: const Icon(Icons.copy_outlined, size: 16),
+          ),
+        ],
+      ),
+    );
   }
 }
 
