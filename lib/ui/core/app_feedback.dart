@@ -21,7 +21,7 @@ void showAppMessage(BuildContext context, String message) {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 520),
               child: Material(
-                color: theme.colorScheme.surfaceContainerHigh,
+                color: theme.colorScheme.primary,
                 elevation: 4,
                 shadowColor: Colors.black26,
                 borderRadius: BorderRadius.circular(14),
@@ -36,14 +36,14 @@ void showAppMessage(BuildContext context, String message) {
                       Icon(
                         Icons.info_outline,
                         size: 20,
-                        color: theme.colorScheme.primary,
+                        color: theme.colorScheme.onPrimary,
                       ),
                       const SizedBox(width: 10),
                       Flexible(
                         child: Text(
                           message,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface,
+                            color: theme.colorScheme.onPrimary,
                           ),
                         ),
                       ),
