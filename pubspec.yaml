@@ -43,6 +43,8 @@ dependencies:
   url_launcher: ^6.3.2
   file_picker: ^12.2.0
   kpasslib: ^1.1.2
+  local_auth: ^3.0.2
+  flutter_secure_storage: ^11.0.0
 
 dev_dependencies:
   flutter_test:

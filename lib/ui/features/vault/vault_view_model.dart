@@ -6,6 +6,7 @@ import '../../../data/models/sync_history_entry.dart';
 import '../../../data/models/kdbx_transfer_data.dart';
 import '../../../data/repositories/vault_repository.dart';
 import '../../../data/services/kdbx_transfer_service.dart';
+import '../../../data/services/device_unlock_service.dart';
 import '../../../data/services/sync_history_service.dart';
 import '../../../domain/models/vault_item.dart';
 import '../../../domain/models/vault_group.dart';
@@ -29,17 +30,20 @@ enum VaultSortOrder { name, time }
 class VaultViewModel extends ChangeNotifier {
   VaultViewModel({
     required VaultRepository repository,
+    required DeviceUnlockService deviceUnlockService,
     required KdbxTransferService kdbxTransferService,
     required SyncVaultUseCase syncVault,
     required RestoreVaultUseCase restoreVault,
     required SyncHistoryService syncHistoryService,
   }) : _repository = repository,
+       _deviceUnlockService = deviceUnlockService,
        _kdbxTransferService = kdbxTransferService,
        _syncVault = syncVault,
        _restoreVault = restoreVault,
        _syncHistoryService = syncHistoryService;
 
   final VaultRepository _repository;
+  final DeviceUnlockService _deviceUnlockService;
   final KdbxTransferService _kdbxTransferService;
   final SyncVaultUseCase _syncVault;
   final RestoreVaultUseCase _restoreVault;
@@ -61,6 +65,9 @@ class VaultViewModel extends ChangeNotifier {
   String _selectedGroupId = 'all';
   bool _selectionMode = false;
   final Set<String> _selectedItemIds = <String>{};
+  bool _deviceUnlockSupported = false;
+  bool _deviceUnlockEnabled = false;
+  bool _deviceUnlockBusy = false;
 
   VaultAppState get state => _state;
   String? get errorMessage => _errorMessage;
@@ -76,13 +83,18 @@ class VaultViewModel extends ChangeNotifier {
   List<VaultGroup> get groups => _repository.vault?.groups ?? const [];
   String get selectedGroupId => _selectedGroupId;
   bool get selectionMode => _selectionMode;
+  bool get deviceUnlockSupported => _deviceUnlockSupported;
+  bool get deviceUnlockEnabled => _deviceUnlockEnabled;
+  bool get deviceUnlockBusy => _deviceUnlockBusy;
   Set<String> get selectedItemIds => Set.unmodifiable(_selectedItemIds);
   List<VaultItem> get selectedItems => [
     for (final item in _repository.vault?.items ?? const <VaultItem>[])
       if (_selectedItemIds.contains(item.id)) item,
   ];
   bool get busy =>
-      _state == VaultAppState.saving || _state == VaultAppState.syncing;
+      _state == VaultAppState.saving ||
+      _state == VaultAppState.syncing ||
+      _deviceUnlockBusy;
 
   List<VaultItem> get items {
     final allItems = _repository.vault?.items ?? const <VaultItem>[];
@@ -136,9 +148,16 @@ class VaultViewModel extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
-    _state = await _repository.hasVault()
-        ? VaultAppState.locked
-        : VaultAppState.noVault;
+    final hasVault = await _repository.hasVault();
+    _state = hasVault ? VaultAppState.locked : VaultAppState.noVault;
+    _deviceUnlockSupported = await _deviceUnlockService.isAvailable();
+    if (hasVault) {
+      _deviceUnlockEnabled =
+          _deviceUnlockSupported &&
+          await _deviceUnlockService.isEnabledFor(
+            await _repository.storedVaultId(),
+          );
+    }
     notifyListeners();
   }
 
@@ -160,6 +179,69 @@ class VaultViewModel extends ChangeNotifier {
     if (succeeded) {
       _startPeriodicSync();
       unawaited(_performSync(trigger: '解锁自动同步', quietIfUnconfigured: true));
+    }
+  }
+
+  Future<void> unlockWithDevice() async {
+    if (_state != VaultAppState.locked || !_deviceUnlockEnabled) return;
+    _state = VaultAppState.unlocking;
+    _errorMessage = null;
+    notifyListeners();
+    Uint8List? rawKey;
+    try {
+      final vaultId = await _repository.storedVaultId();
+      rawKey = await _deviceUnlockService.readVaultKey(vaultId);
+      await _repository.unlockWithDeviceKey(rawKey);
+      _state = VaultAppState.unlocked;
+      _startPeriodicSync();
+      notifyListeners();
+      unawaited(_performSync(trigger: '解锁自动同步', quietIfUnconfigured: true));
+    } catch (error) {
+      _state = VaultAppState.locked;
+      _errorMessage = _readableError(error);
+      notifyListeners();
+    } finally {
+      rawKey?.fillRange(0, rawKey.length, 0);
+    }
+  }
+
+  Future<bool> enableDeviceUnlock(String masterPassword) async {
+    final vaultId = _repository.currentVaultId;
+    if (vaultId == null || _deviceUnlockBusy) return false;
+    _deviceUnlockBusy = true;
+    _errorMessage = null;
+    notifyListeners();
+    Uint8List? rawKey;
+    try {
+      rawKey = _repository.exportDeviceUnlockKey(masterPassword);
+      await _deviceUnlockService.enable(vaultId: vaultId, vaultKey: rawKey);
+      _deviceUnlockEnabled = true;
+      return true;
+    } catch (error) {
+      _errorMessage = _readableError(error);
+      return false;
+    } finally {
+      rawKey?.fillRange(0, rawKey.length, 0);
+      _deviceUnlockBusy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> disableDeviceUnlock() async {
+    if (_deviceUnlockBusy) return false;
+    _deviceUnlockBusy = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _deviceUnlockService.disable();
+      _deviceUnlockEnabled = false;
+      return true;
+    } catch (error) {
+      _errorMessage = _readableError(error);
+      return false;
+    } finally {
+      _deviceUnlockBusy = false;
+      notifyListeners();
     }
   }
 

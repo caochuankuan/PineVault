@@ -4,6 +4,7 @@ import '../data/repositories/vault_repository.dart';
 import '../data/repositories/webdav_repository.dart';
 import '../data/serialization/vault_codec.dart';
 import '../data/services/crypto_service.dart';
+import '../data/services/device_unlock_service.dart';
 import '../data/services/kdbx_transfer_service.dart';
 import '../data/services/sync_state_service.dart';
 import '../data/services/sync_history_service.dart';
@@ -51,6 +52,7 @@ class AppDependencies {
     );
     final vaultViewModel = VaultViewModel(
       repository: repository,
+      deviceUnlockService: DeviceUnlockService(),
       kdbxTransferService: KdbxTransferService(),
       syncVault: syncVault,
       restoreVault: restoreVault,

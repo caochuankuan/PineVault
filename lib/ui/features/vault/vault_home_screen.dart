@@ -10,6 +10,7 @@ import '../../../domain/models/vault_group.dart';
 import '../../core/vault_brand.dart';
 import '../../core/app_feedback.dart';
 import '../settings/change_master_password_dialog.dart';
+import '../settings/device_unlock_sheet.dart';
 import '../settings/sync_history_screen.dart';
 import '../settings/webdav_settings_screen.dart';
 import 'vault_view_model.dart';
@@ -63,6 +64,21 @@ class VaultHomeScreen extends StatelessWidget {
                 value: _VaultMenuAction.changeMasterPassword,
                 enabled: !viewModel.busy,
                 child: const _MenuRow(icon: Icons.key_outlined, label: '修改主密码'),
+              ),
+              PopupMenuItem(
+                value: _VaultMenuAction.deviceUnlock,
+                enabled:
+                    viewModel.deviceUnlockSupported &&
+                    !viewModel.deviceUnlockBusy,
+                child: _MenuRow(
+                  icon: viewModel.deviceUnlockEnabled
+                      ? Icons.phonelink_lock
+                      : Icons.phonelink_lock_outlined,
+                  label: viewModel.deviceUnlockSupported
+                      ? (viewModel.deviceUnlockEnabled ? '关闭设备验证解锁' : '设备验证解锁')
+                      : '设备验证不可用',
+                  active: viewModel.deviceUnlockEnabled,
+                ),
               ),
               const PopupMenuDivider(),
               PopupMenuItem(
@@ -214,6 +230,7 @@ enum _VaultMenuAction {
   webDav,
   history,
   changeMasterPassword,
+  deviceUnlock,
   importKdbx,
   exportKdbx,
   multiSelect,
@@ -270,6 +287,15 @@ Future<void> _handleMenu(BuildContext context, _VaultMenuAction action) async {
         useSafeArea: true,
         backgroundColor: Colors.transparent,
         builder: (_) => const ChangeMasterPasswordDialog(),
+      );
+    case _VaultMenuAction.deviceUnlock:
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) =>
+            DeviceUnlockSheet(disable: viewModel.deviceUnlockEnabled),
       );
     case _VaultMenuAction.importKdbx:
       await _importKdbx(context, viewModel);

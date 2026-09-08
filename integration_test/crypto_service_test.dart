@@ -166,6 +166,47 @@ void main() {
     await repository.unlock(newPassword);
     expect(repository.vault!.items.single.password, 'preserved-secret');
   });
+
+  testWidgets('device key unlock survives a master password change', (
+    tester,
+  ) async {
+    final temporaryDirectory = await Directory.systemTemp.createTemp(
+      'pine_vault_device_unlock_',
+    );
+    final repository = VaultRepository(
+      cryptoService: cryptoService,
+      fileService: VaultFileService(
+        directoryProvider: () async => temporaryDirectory,
+      ),
+      codec: codec,
+    );
+    addTearDown(() async {
+      repository.lock();
+      await temporaryDirectory.delete(recursive: true);
+    });
+
+    const oldPassword = 'correct horse battery staple';
+    await repository.create(oldPassword);
+    await repository.upsert(
+      title: 'Device unlocked account',
+      username: 'person@example.com',
+      password: 'device-protected-secret',
+      url: '',
+      notes: '',
+      favorite: false,
+    );
+    final rawDeviceKey = repository.exportDeviceUnlockKey(oldPassword);
+    addTearDown(() => rawDeviceKey.fillRange(0, rawDeviceKey.length, 0));
+
+    await repository.changeMasterPassword(
+      currentPassword: oldPassword,
+      newPassword: 'new-password-123',
+    );
+    repository.lock();
+    await repository.unlockWithDeviceKey(rawDeviceKey);
+
+    expect(repository.vault!.items.single.password, 'device-protected-secret');
+  });
 }
 
 Vault _sampleVault() {

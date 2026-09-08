@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:sodium_libs/sodium_libs_sumo.dart';
 import 'package:uuid/uuid.dart';
 
@@ -33,6 +35,11 @@ class VaultRepository {
   SecureKey? _key;
 
   Vault? get vault => _vault;
+  String? get currentVaultId => _envelope?.vaultId;
+
+  Future<String> storedVaultId() async {
+    return _codec.decodeEnvelope(await _fileService.read()).vaultId;
+  }
 
   VaultEnvelope decodeEnvelope(String encoded) =>
       _codec.decodeEnvelope(encoded);
@@ -150,6 +157,33 @@ class VaultRepository {
       envelope: unlocked.envelope,
       key: unlocked.key,
     );
+  }
+
+  Future<void> unlockWithDeviceKey(Uint8List rawVaultKey) async {
+    final envelope = _codec.decodeEnvelope(await _fileService.read());
+    final unlocked = _cryptoService.unlockWithVaultKey(
+      rawVaultKey: rawVaultKey,
+      envelope: envelope,
+    );
+    _replaceSession(
+      vault: unlocked.vault,
+      envelope: unlocked.envelope,
+      key: unlocked.key,
+    );
+  }
+
+  Uint8List exportDeviceUnlockKey(String masterPassword) {
+    final envelope = _envelope;
+    final key = _key;
+    if (envelope == null || key == null) {
+      throw StateError('密码库尚未解锁');
+    }
+    final verified = _cryptoService.unlock(
+      masterPassword: masterPassword,
+      envelope: envelope,
+    );
+    verified.key.dispose();
+    return key.extractBytes();
   }
 
   Future<void> upsert({

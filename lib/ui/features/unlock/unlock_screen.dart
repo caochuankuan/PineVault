@@ -9,12 +9,16 @@ class UnlockScreen extends StatefulWidget {
     super.key,
     required this.busy,
     required this.onUnlock,
+    required this.deviceUnlockEnabled,
+    required this.onDeviceUnlock,
     this.errorMessage,
   });
 
   final bool busy;
   final String? errorMessage;
   final UnlockVaultCallback onUnlock;
+  final bool deviceUnlockEnabled;
+  final Future<void> Function() onDeviceUnlock;
 
   @override
   State<UnlockScreen> createState() => _UnlockScreenState();
@@ -98,6 +102,15 @@ class _UnlockScreenState extends State<UnlockScreen> {
                           : const Icon(Icons.lock_open_outlined),
                       label: Text(widget.busy ? '正在解锁…' : '解锁'),
                     ),
+                    if (widget.deviceUnlockEnabled) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        key: const Key('device-unlock-vault'),
+                        onPressed: widget.busy ? null : widget.onDeviceUnlock,
+                        icon: const Icon(Icons.fingerprint),
+                        label: const Text('使用设备验证解锁'),
+                      ),
+                    ],
                   ],
                 ),
               ),

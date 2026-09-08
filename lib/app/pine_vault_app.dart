@@ -118,6 +118,8 @@ class _AppRouter extends StatelessWidget {
             busy: viewModel.state == VaultAppState.unlocking,
             errorMessage: viewModel.errorMessage,
             onUnlock: viewModel.unlock,
+            deviceUnlockEnabled: viewModel.deviceUnlockEnabled,
+            onDeviceUnlock: viewModel.unlockWithDevice,
           ),
           VaultAppState.unlocked ||
           VaultAppState.saving ||

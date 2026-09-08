@@ -129,6 +129,30 @@ class SodiumCryptoService {
     }
   }
 
+  UnlockedVault unlockWithVaultKey({
+    required Uint8List rawVaultKey,
+    required VaultEnvelope envelope,
+  }) {
+    if (rawVaultKey.length != _aead.keyBytes) {
+      throw const VaultUnlockException();
+    }
+    final vaultKey = _sodium.secureCopy(rawVaultKey);
+    try {
+      final vault = _decryptPayload(
+        envelope.vaultId,
+        envelope.payload,
+        vaultKey,
+      );
+      if (vault.id != envelope.vaultId) {
+        throw const FormatException('Vault identifier mismatch.');
+      }
+      return UnlockedVault(envelope: envelope, vault: vault, key: vaultKey);
+    } catch (_) {
+      vaultKey.dispose();
+      throw const VaultUnlockException();
+    }
+  }
+
   VaultEnvelope encryptVault({
     required VaultEnvelope envelope,
     required SecureKey key,
