@@ -1011,6 +1011,17 @@ class _VaultList extends StatelessWidget {
                 selected: viewModel.selectedGroupId == 'all',
                 onSelected: (_) => viewModel.setSelectedGroup('all'),
               ),
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: FilterChip(
+                  avatar: const Icon(Icons.timer_outlined, size: 18),
+                  label: const Text('TOTP'),
+                  selected:
+                      viewModel.selectedGroupId == VaultViewModel.totpGroupId,
+                  onSelected: (_) =>
+                      viewModel.setSelectedGroup(VaultViewModel.totpGroupId),
+                ),
+              ),
               ...viewModel.groups.map(
                 (group) => Padding(
                   padding: const EdgeInsets.only(left: 8),
@@ -1111,7 +1122,7 @@ class _VaultList extends StatelessWidget {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    if (viewModel.showTotp &&
+                                    if (viewModel.shouldShowTotp &&
                                         item.totp != null) ...[
                                       const SizedBox(height: 7),
                                       _HomeTotpLine(config: item.totp!),
@@ -1371,7 +1382,7 @@ class _GroupManagementSheet extends StatelessWidget {
     final theme = Theme.of(context);
     final maxHeight = MediaQuery.sizeOf(context).height * 0.78;
     final groups = context.watch<VaultViewModel>().groups;
-    final sheetHeight = math.min(maxHeight, 148 + groups.length * 88.0);
+    final sheetHeight = math.min(maxHeight, 148 + (groups.length + 1) * 88.0);
     return Align(
       alignment: Alignment.bottomCenter,
       child: ConstrainedBox(
@@ -1423,10 +1434,35 @@ class _GroupManagementSheet extends StatelessWidget {
                       ),
                     ),
                     const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        elevation: 0,
+                        color: theme.colorScheme.surfaceContainerLow,
+                        child: ListTile(
+                          leading: Icon(
+                            Icons.timer_outlined,
+                            color: theme.colorScheme.primary,
+                          ),
+                          title: const Text('TOTP'),
+                          subtitle: Text(
+                            '系统分组 · ${viewModel.itemCountForGroup(VaultViewModel.totpGroupId)} 条记录',
+                          ),
+                          trailing: const Tooltip(
+                            message: '系统分组不可编辑',
+                            child: Padding(
+                              padding: EdgeInsets.all(12),
+                              child: Icon(Icons.lock_outline),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                     Expanded(
                       child: ReorderableListView.builder(
                         buildDefaultDragHandles: false,
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                         itemCount: groups.length,
                         onReorder: viewModel.busy
                             ? (_, _) {}

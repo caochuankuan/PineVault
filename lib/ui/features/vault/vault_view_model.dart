@@ -29,6 +29,8 @@ enum VaultAppState {
 enum VaultSortOrder { name, time }
 
 class VaultViewModel extends ChangeNotifier {
+  static const String totpGroupId = 'system:totp';
+
   VaultViewModel({
     required VaultRepository repository,
     required DeviceUnlockService deviceUnlockService,
@@ -81,13 +83,15 @@ class VaultViewModel extends ChangeNotifier {
   bool get showPasswords => _showPasswords;
   bool get showWebsites => _showWebsites;
   bool get showTotp => _showTotp;
+  bool get shouldShowTotp => _showTotp || _selectedGroupId == totpGroupId;
   VaultSortOrder get sortOrder => _sortOrder;
   bool get sortReversed => _sortReversed;
   List<VaultGroup> get groups => _repository.vault?.groups ?? const [];
   int itemCountForGroup(String groupId) =>
-      _repository.vault?.items
-          .where((item) => item.groupId == groupId)
-          .length ??
+      _repository.vault?.items.where((item) {
+        if (groupId == totpGroupId) return item.totp != null;
+        return item.groupId == groupId;
+      }).length ??
       0;
   String get selectedGroupId => _selectedGroupId;
   bool get selectionMode => _selectionMode;
@@ -108,14 +112,9 @@ class VaultViewModel extends ChangeNotifier {
     final allItems = _repository.vault?.items ?? const <VaultItem>[];
     final normalizedQuery = _query.trim().toLowerCase();
     final filtered = normalizedQuery.isEmpty
-        ? allItems.where(
-            (item) =>
-                _selectedGroupId == 'all' || item.groupId == _selectedGroupId,
-          )
+        ? allItems.where(_isInSelectedGroup)
         : allItems.where((item) {
-            final inGroup =
-                _selectedGroupId == 'all' || item.groupId == _selectedGroupId;
-            return inGroup &&
+            return _isInSelectedGroup(item) &&
                 (item.title.toLowerCase().contains(normalizedQuery) ||
                     item.username.toLowerCase().contains(normalizedQuery) ||
                     item.urls.any(
@@ -131,6 +130,12 @@ class VaultViewModel extends ChangeNotifier {
       return _sortReversed ? -comparison : comparison;
     });
     return result;
+  }
+
+  bool _isInSelectedGroup(VaultItem item) {
+    if (_selectedGroupId == 'all') return true;
+    if (_selectedGroupId == totpGroupId) return item.totp != null;
+    return item.groupId == _selectedGroupId;
   }
 
   void setShowPasswords(bool value) {
