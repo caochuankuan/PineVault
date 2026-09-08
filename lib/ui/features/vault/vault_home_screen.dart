@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1226,9 +1228,12 @@ class _GroupManagementSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final maxHeight = MediaQuery.sizeOf(context).height * 0.78;
-    return Center(
+    final groups = context.watch<VaultViewModel>().groups;
+    final sheetHeight = math.min(maxHeight, 148 + groups.length * 88.0);
+    return Align(
+      alignment: Alignment.bottomCenter,
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 640, maxHeight: maxHeight),
+        constraints: BoxConstraints(maxWidth: 640, maxHeight: sheetHeight),
         child: Material(
           color: theme.colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -1276,7 +1281,7 @@ class _GroupManagementSheet extends StatelessWidget {
                       ),
                     ),
                     const Divider(height: 1),
-                    Flexible(
+                    Expanded(
                       child: ReorderableListView.builder(
                         buildDefaultDragHandles: false,
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -1340,7 +1345,7 @@ class _GroupManagementSheet extends StatelessWidget {
                                           ),
                                     icon: const Icon(Icons.delete_outline),
                                   ),
-                                  ReorderableDelayedDragStartListener(
+                                  ReorderableDragStartListener(
                                     index: index,
                                     enabled: !isDefault && !viewModel.busy,
                                     child: const Padding(
