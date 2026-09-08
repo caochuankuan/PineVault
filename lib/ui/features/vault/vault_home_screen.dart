@@ -985,11 +985,14 @@ class _VaultList extends StatelessWidget {
                             children: [
                               if (viewModel.selectionMode)
                                 Padding(
-                                  padding: const EdgeInsets.only(right: 8),
+                                  padding: const EdgeInsets.only(right: 2),
                                   child: Checkbox(
                                     value: viewModel.selectedItemIds.contains(
                                       item.id,
                                     ),
+                                    visualDensity: VisualDensity.compact,
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
                                     onChanged: (_) =>
                                         viewModel.toggleItemSelection(item.id),
                                   ),
