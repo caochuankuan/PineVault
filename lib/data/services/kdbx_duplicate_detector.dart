@@ -8,6 +8,7 @@ typedef _DuplicateSignature = ({
   String username,
   String password,
   String url,
+  String totp,
 });
 
 class KdbxDuplicateDetector {
@@ -53,6 +54,9 @@ class KdbxDuplicateDetector {
     username: item.username.trim().toLowerCase(),
     password: item.password,
     url: (item.urls.isEmpty ? '' : item.urls.first).trim().toLowerCase(),
+    totp: item.totp == null
+        ? ''
+        : '${item.totp!.secret}|${item.totp!.algorithm.name}|${item.totp!.digits}|${item.totp!.period}',
   );
 
   _DuplicateSignature _importEntrySignature(KdbxImportEntry entry) => (
@@ -61,5 +65,8 @@ class KdbxDuplicateDetector {
     username: entry.username.trim().toLowerCase(),
     password: entry.password,
     url: entry.url.trim().toLowerCase(),
+    totp: entry.totp == null
+        ? ''
+        : '${entry.totp!.secret}|${entry.totp!.algorithm.name}|${entry.totp!.digits}|${entry.totp!.period}',
   );
 }

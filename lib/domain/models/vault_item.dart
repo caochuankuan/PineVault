@@ -1,3 +1,5 @@
+import 'totp_config.dart';
+
 enum VaultItemType { login, secureNote }
 
 class VaultItem {
@@ -11,6 +13,7 @@ class VaultItem {
     required this.urls,
     required this.notes,
     this.tags = const [],
+    this.totp,
     required this.favorite,
     required this.createdAt,
     required this.updatedAt,
@@ -26,6 +29,7 @@ class VaultItem {
   final List<String> urls;
   final String notes;
   final List<String> tags;
+  final TotpConfig? totp;
   final bool favorite;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -44,6 +48,9 @@ class VaultItem {
       tags: List.unmodifiable(
         (json['tags'] as List<dynamic>? ?? const []).cast<String>(),
       ),
+      totp: json['totp'] == null
+          ? null
+          : TotpConfig.fromJson(json['totp'] as Map<String, dynamic>),
       favorite: json['favorite'] as bool,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
@@ -61,6 +68,7 @@ class VaultItem {
     'urls': urls,
     'notes': notes,
     'tags': tags,
+    if (totp case final value?) 'totp': value.toJson(),
     'favorite': favorite,
     'createdAt': createdAt.toUtc().toIso8601String(),
     'updatedAt': updatedAt.toUtc().toIso8601String(),
@@ -75,6 +83,8 @@ class VaultItem {
     List<String>? urls,
     String? notes,
     List<String>? tags,
+    TotpConfig? totp,
+    bool clearTotp = false,
     bool? favorite,
     DateTime? updatedAt,
     int? revision,
@@ -89,6 +99,7 @@ class VaultItem {
       urls: List.unmodifiable(urls ?? this.urls),
       notes: notes ?? this.notes,
       tags: List.unmodifiable(tags ?? this.tags),
+      totp: clearTotp ? null : totp ?? this.totp,
       favorite: favorite ?? this.favorite,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

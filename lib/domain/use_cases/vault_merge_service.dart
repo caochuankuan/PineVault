@@ -199,6 +199,8 @@ class VaultMergeService {
       password: item.password,
       urls: item.urls,
       notes: item.notes,
+      tags: item.tags,
+      totp: item.totp,
       favorite: item.favorite,
       createdAt: now,
       updatedAt: now,

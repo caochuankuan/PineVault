@@ -1,12 +1,17 @@
 import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/models/kdbx_transfer_data.dart';
+import '../../../data/services/totp_service.dart';
+import '../../../domain/models/totp_config.dart';
 import '../../../domain/models/vault_item.dart';
 import '../../../domain/models/vault_group.dart';
 import '../../core/vault_brand.dart';
@@ -542,6 +547,14 @@ class _KdbxImportReviewSheetState extends State<_KdbxImportReviewSheet> {
                                 child: _ImportIssueBadge(issue: issue),
                               ),
                             ),
+                            if (entry.totp != null)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 5),
+                                child: _ImportStatusBadge(
+                                  label: '动态码',
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
                           ],
                         ),
                         subtitle: Padding(
@@ -552,6 +565,7 @@ class _KdbxImportReviewSheetState extends State<_KdbxImportReviewSheet> {
                               if (entry.username.trim().isNotEmpty)
                                 entry.username,
                               if (entry.url.trim().isNotEmpty) entry.url,
+                              if (entry.totpError != null) entry.totpError!,
                             ].join(' · '),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -608,6 +622,7 @@ class _KdbxImportReviewSheetState extends State<_KdbxImportReviewSheet> {
         _ImportIssue.duplicate,
       if (entry.title.trim().isEmpty) _ImportIssue.missingTitle,
       if (entry.password.isEmpty) _ImportIssue.missingPassword,
+      if (entry.totpError != null) _ImportIssue.invalidTotp,
     ];
   }
 
@@ -635,7 +650,7 @@ class _KdbxImportReviewSheetState extends State<_KdbxImportReviewSheet> {
   }
 }
 
-enum _ImportIssue { duplicate, missingTitle, missingPassword }
+enum _ImportIssue { duplicate, missingTitle, missingPassword, invalidTotp }
 
 class _ImportIssueBadge extends StatelessWidget {
   const _ImportIssueBadge({required this.issue});
@@ -649,6 +664,7 @@ class _ImportIssueBadge extends StatelessWidget {
       _ImportIssue.duplicate => ('重复', Colors.orange.shade800),
       _ImportIssue.missingTitle => ('缺名称', theme.colorScheme.error),
       _ImportIssue.missingPassword => ('缺密码', theme.colorScheme.error),
+      _ImportIssue.invalidTotp => ('验证码异常', theme.colorScheme.error),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
@@ -659,6 +675,31 @@ class _ImportIssueBadge extends StatelessWidget {
       child: Text(
         label,
         style: theme.textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _ImportStatusBadge extends StatelessWidget {
+  const _ImportStatusBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
           color: color,
           fontWeight: FontWeight.w700,
         ),
@@ -1595,7 +1636,7 @@ class _GroupNameSheetState extends State<_GroupNameSheet> {
   }
 }
 
-enum _ItemAction { all, username, password, website, notes, openWebsite }
+enum _ItemAction { all, username, password, totp, website, notes, openWebsite }
 
 Future<void> _showItemActions(BuildContext context, VaultItem item) async {
   final action = await showModalBottomSheet<_ItemAction>(
@@ -1625,6 +1666,12 @@ Future<void> _showItemActions(BuildContext context, VaultItem item) async {
             title: const Text('复制密码'),
             onTap: () => Navigator.pop(context, _ItemAction.password),
           ),
+          if (item.totp != null)
+            ListTile(
+              leading: const Icon(Icons.timer_outlined),
+              title: const Text('复制动态验证码'),
+              onTap: () => Navigator.pop(context, _ItemAction.totp),
+            ),
           ListTile(
             leading: const Icon(Icons.link_outlined),
             title: const Text('复制网站'),
@@ -1656,6 +1703,12 @@ Future<void> _showItemActions(BuildContext context, VaultItem item) async {
       await _copyItemText(context, item.username, '账号');
     case _ItemAction.password:
       await _copyItemText(context, item.password, '密码');
+    case _ItemAction.totp:
+      await _copyItemText(
+        context,
+        const TotpService().generate(item.totp!),
+        '动态验证码',
+      );
     case _ItemAction.website:
       await _copyItemText(
         context,
@@ -2089,6 +2142,11 @@ class _ItemViewerState extends State<_ItemViewer> {
                           ),
                         ),
                       ),
+                      if (widget.item.totp case final totp?)
+                        _TotpViewerCard(
+                          config: totp,
+                          onCopy: (code) => _copy(code, '动态验证码'),
+                        ),
                       valueRow(
                         '网站',
                         widget.item.urls.isEmpty ? '' : widget.item.urls.first,
@@ -2261,6 +2319,111 @@ class _ItemViewerState extends State<_ItemViewer> {
   }
 }
 
+class _TotpViewerCard extends StatefulWidget {
+  const _TotpViewerCard({required this.config, required this.onCopy});
+
+  final TotpConfig config;
+  final ValueChanged<String> onCopy;
+
+  @override
+  State<_TotpViewerCard> createState() => _TotpViewerCardState();
+}
+
+class _TotpViewerCardState extends State<_TotpViewerCard> {
+  static const _service = TotpService();
+  Timer? _timer;
+  DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final code = _service.generate(widget.config, time: _now);
+    final remaining = _service.remainingSeconds(widget.config, time: _now);
+    final split = code.length ~/ 2;
+    final displayCode = '${code.substring(0, split)} ${code.substring(split)}';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.42),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          child: Row(
+            children: [
+              Icon(
+                Icons.timer_outlined,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text('动态验证码', style: theme.textTheme.labelMedium),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 28,
+                          ),
+                          tooltip: '复制动态验证码',
+                          onPressed: () => widget.onCopy(code),
+                          icon: const Icon(Icons.copy_outlined, size: 17),
+                        ),
+                      ],
+                    ),
+                    SelectableText(
+                      displayCode,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: LinearProgressIndicator(
+                            value: remaining / widget.config.period,
+                            minHeight: 4,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text('$remaining 秒'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ItemEditorDialog extends StatefulWidget {
   const _ItemEditorDialog({required this.viewModel, this.item});
 
@@ -2272,6 +2435,7 @@ class _ItemEditorDialog extends StatefulWidget {
 }
 
 class _ItemEditorDialogState extends State<_ItemEditorDialog> {
+  static const _totpService = TotpService();
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _title;
   late final TextEditingController _username;
@@ -2279,9 +2443,17 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
   late final TextEditingController _url;
   late final TextEditingController _notes;
   late final TextEditingController _tags;
+  late final TextEditingController _totpInput;
+  late final TextEditingController _totpIssuer;
+  late final TextEditingController _totpAccount;
   late bool _favorite;
   late String _groupId;
+  late bool _totpEnabled;
+  late TotpAlgorithm _totpAlgorithm;
+  late int _totpDigits;
+  late int _totpPeriod;
   bool _obscurePassword = true;
+  bool _obscureTotpSecret = true;
   bool _busy = false;
 
   @override
@@ -2296,8 +2468,16 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
     );
     _notes = TextEditingController(text: item?.notes ?? '');
     _tags = TextEditingController(text: item?.tags.join(', ') ?? '');
+    final totp = item?.totp;
+    _totpInput = TextEditingController(text: totp?.secret ?? '');
+    _totpIssuer = TextEditingController(text: totp?.issuer ?? '');
+    _totpAccount = TextEditingController(text: totp?.account ?? '');
     _favorite = item?.favorite ?? false;
     _groupId = item?.groupId ?? 'default';
+    _totpEnabled = totp != null;
+    _totpAlgorithm = totp?.algorithm ?? TotpAlgorithm.sha1;
+    _totpDigits = totp?.digits ?? 6;
+    _totpPeriod = totp?.period ?? 30;
   }
 
   @override
@@ -2308,6 +2488,9 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
     _url.dispose();
     _notes.dispose();
     _tags.dispose();
+    _totpInput.dispose();
+    _totpIssuer.dispose();
+    _totpAccount.dispose();
     super.dispose();
   }
 
@@ -2344,6 +2527,53 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
         ),
       );
     }
+
+    Widget algorithmSelector() => DropdownButtonFormField<TotpAlgorithm>(
+      initialValue: _totpAlgorithm,
+      decoration: decoration(
+        '算法',
+        Icons.security_outlined,
+      ).copyWith(fillColor: theme.colorScheme.surface, prefixIcon: null),
+      items: const [
+        DropdownMenuItem(value: TotpAlgorithm.sha1, child: Text('SHA1')),
+        DropdownMenuItem(value: TotpAlgorithm.sha256, child: Text('SHA256')),
+        DropdownMenuItem(value: TotpAlgorithm.sha512, child: Text('SHA512')),
+      ],
+      onChanged: _busy
+          ? null
+          : (value) =>
+                setState(() => _totpAlgorithm = value ?? TotpAlgorithm.sha1),
+    );
+
+    Widget digitsSelector() => DropdownButtonFormField<int>(
+      initialValue: _totpDigits,
+      decoration: decoration(
+        '位数',
+        Icons.pin_outlined,
+      ).copyWith(fillColor: theme.colorScheme.surface, prefixIcon: null),
+      items: const [
+        DropdownMenuItem(value: 6, child: Text('6 位')),
+        DropdownMenuItem(value: 8, child: Text('8 位')),
+      ],
+      onChanged: _busy
+          ? null
+          : (value) => setState(() => _totpDigits = value ?? 6),
+    );
+
+    Widget periodSelector() => DropdownButtonFormField<int>(
+      initialValue: _totpPeriod,
+      decoration: decoration(
+        '周期',
+        Icons.schedule_outlined,
+      ).copyWith(fillColor: theme.colorScheme.surface, prefixIcon: null),
+      items: const [
+        DropdownMenuItem(value: 30, child: Text('30 秒')),
+        DropdownMenuItem(value: 60, child: Text('60 秒')),
+      ],
+      onChanged: _busy
+          ? null
+          : (value) => setState(() => _totpPeriod = value ?? 30),
+    );
 
     return Material(
       color: theme.colorScheme.surface,
@@ -2432,6 +2662,149 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
                                   ),
                                 ),
                               ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: fieldFill,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: theme.colorScheme.outlineVariant
+                                  .withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              SwitchListTile.adaptive(
+                                value: _totpEnabled,
+                                onChanged: _busy
+                                    ? null
+                                    : (value) =>
+                                          setState(() => _totpEnabled = value),
+                                secondary: const Icon(Icons.timer_outlined),
+                                title: const Text('动态验证码'),
+                                subtitle: Text(
+                                  _totpEnabled ? '验证码密钥随密码库加密保存' : '未配置',
+                                ),
+                              ),
+                              if (_totpEnabled) ...[
+                                const Divider(height: 1),
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    12,
+                                    12,
+                                    14,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      TextFormField(
+                                        controller: _totpInput,
+                                        obscureText: _obscureTotpSecret,
+                                        enableSuggestions: false,
+                                        autocorrect: false,
+                                        decoration:
+                                            decoration(
+                                              '密钥或 otpauth:// 地址',
+                                              Icons.vpn_key_outlined,
+                                            ).copyWith(
+                                              fillColor:
+                                                  theme.colorScheme.surface,
+                                              suffixIcon: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  IconButton(
+                                                    tooltip: _obscureTotpSecret
+                                                        ? '显示密钥'
+                                                        : '隐藏密钥',
+                                                    onPressed: () => setState(
+                                                      () => _obscureTotpSecret =
+                                                          !_obscureTotpSecret,
+                                                    ),
+                                                    icon: Icon(
+                                                      _obscureTotpSecret
+                                                          ? Icons
+                                                                .visibility_outlined
+                                                          : Icons
+                                                                .visibility_off_outlined,
+                                                    ),
+                                                  ),
+                                                  if (_supportsTotpScanner)
+                                                    IconButton(
+                                                      tooltip: '扫描二维码',
+                                                      onPressed: _scanTotp,
+                                                      icon: const Icon(
+                                                        Icons.qr_code_scanner,
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                        validator: (value) {
+                                          if (!_totpEnabled) return null;
+                                          try {
+                                            _totpService.parse(value ?? '');
+                                            return null;
+                                          } on FormatException catch (error) {
+                                            return error.message.toString();
+                                          }
+                                        },
+                                        onFieldSubmitted: (_) =>
+                                            _applyTotpInput(showError: true),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      TextFormField(
+                                        controller: _totpIssuer,
+                                        decoration:
+                                            decoration(
+                                              '服务名称（可选）',
+                                              Icons.business_outlined,
+                                            ).copyWith(
+                                              fillColor:
+                                                  theme.colorScheme.surface,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      TextFormField(
+                                        controller: _totpAccount,
+                                        decoration:
+                                            decoration(
+                                              '验证码账号（可选）',
+                                              Icons.person_outline,
+                                            ).copyWith(
+                                              fillColor:
+                                                  theme.colorScheme.surface,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      if (compact) ...[
+                                        algorithmSelector(),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Expanded(child: digitsSelector()),
+                                            const SizedBox(width: 8),
+                                            Expanded(child: periodSelector()),
+                                          ],
+                                        ),
+                                      ] else
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: algorithmSelector(),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(child: digitsSelector()),
+                                            const SizedBox(width: 8),
+                                            Expanded(child: periodSelector()),
+                                          ],
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 10),
                         TextFormField(
@@ -2554,6 +2927,7 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
           .where((tag) => tag.isNotEmpty)
           .toSet()
           .toList(growable: false),
+      totp: _totpEnabled ? _totpFromFields() : null,
       favorite: _favorite,
     );
     if (!mounted) return;
@@ -2581,6 +2955,131 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
 
   void _showError() {
     showAppMessage(context, widget.viewModel.errorMessage ?? '操作失败，请重试');
+  }
+
+  bool get _supportsTotpScanner =>
+      kIsWeb ||
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS ||
+      defaultTargetPlatform == TargetPlatform.macOS;
+
+  TotpConfig _totpFromFields() {
+    final input = _totpInput.text.trim();
+    final parsed = _totpService.parse(input);
+    final isUri = input.toLowerCase().startsWith('otpauth://');
+    return parsed.copyWith(
+      algorithm: isUri ? parsed.algorithm : _totpAlgorithm,
+      digits: isUri ? parsed.digits : _totpDigits,
+      period: isUri ? parsed.period : _totpPeriod,
+      issuer: _totpIssuer.text.trim().isEmpty
+          ? parsed.issuer
+          : _totpIssuer.text.trim(),
+      account: _totpAccount.text.trim().isEmpty
+          ? parsed.account
+          : _totpAccount.text.trim(),
+    );
+  }
+
+  void _applyTotpInput({required bool showError}) {
+    try {
+      final config = _totpService.parse(_totpInput.text);
+      setState(() {
+        _totpInput.text = config.secret;
+        _totpAlgorithm = config.algorithm;
+        _totpDigits = config.digits;
+        _totpPeriod = config.period;
+        if (config.issuer.isNotEmpty) _totpIssuer.text = config.issuer;
+        if (config.account.isNotEmpty) _totpAccount.text = config.account;
+      });
+    } on FormatException catch (error) {
+      if (showError) showAppMessage(context, error.message.toString());
+    }
+  }
+
+  Future<void> _scanTotp() async {
+    FocusScope.of(context).unfocus();
+    final value = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const _TotpQrScannerScreen()),
+    );
+    if (value == null || !mounted) return;
+    _totpInput.text = value;
+    _applyTotpInput(showError: true);
+  }
+}
+
+class _TotpQrScannerScreen extends StatefulWidget {
+  const _TotpQrScannerScreen();
+
+  @override
+  State<_TotpQrScannerScreen> createState() => _TotpQrScannerScreenState();
+}
+
+class _TotpQrScannerScreenState extends State<_TotpQrScannerScreen> {
+  final _controller = MobileScannerController(
+    formats: const [BarcodeFormat.qrCode],
+    detectionSpeed: DetectionSpeed.noDuplicates,
+  );
+  bool _handled = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('扫描动态验证码二维码')),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          MobileScanner(controller: _controller, onDetect: _onDetect),
+          IgnorePointer(
+            child: Center(
+              child: Container(
+                width: 250,
+                height: 250,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white, width: 3),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+              ),
+            ),
+          ),
+          const Positioned(
+            left: 24,
+            right: 24,
+            bottom: 36,
+            child: SafeArea(
+              top: false,
+              child: Text(
+                '将网站提供的动态验证码二维码放入框内',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  shadows: [Shadow(blurRadius: 8, color: Colors.black)],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onDetect(BarcodeCapture capture) {
+    if (_handled) return;
+    for (final barcode in capture.barcodes) {
+      final value = barcode.rawValue?.trim();
+      if (value == null || value.isEmpty) continue;
+      _handled = true;
+      Navigator.pop(context, value);
+      return;
+    }
   }
 }
 

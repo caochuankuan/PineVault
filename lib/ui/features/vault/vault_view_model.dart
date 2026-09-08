@@ -9,6 +9,7 @@ import '../../../data/services/kdbx_transfer_service.dart';
 import '../../../data/services/device_unlock_service.dart';
 import '../../../data/services/sync_history_service.dart';
 import '../../../domain/models/vault_item.dart';
+import '../../../domain/models/totp_config.dart';
 import '../../../domain/models/vault_group.dart';
 import '../../../domain/use_cases/sync_vault_use_case.dart';
 import '../../../domain/use_cases/restore_vault_use_case.dart';
@@ -291,6 +292,7 @@ class VaultViewModel extends ChangeNotifier {
     required String url,
     required String notes,
     List<String> tags = const [],
+    TotpConfig? totp,
     required bool favorite,
   }) async {
     final succeeded = await _runBusy(
@@ -305,6 +307,7 @@ class VaultViewModel extends ChangeNotifier {
         url: url,
         notes: notes,
         tags: tags,
+        totp: totp,
         favorite: favorite,
       ),
     );

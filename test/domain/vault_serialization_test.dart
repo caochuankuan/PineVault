@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pine_vault/domain/models/vault.dart';
 import 'package:pine_vault/domain/models/vault_item.dart';
+import 'package:pine_vault/domain/models/totp_config.dart';
 import 'package:pine_vault/domain/models/webdav_configuration.dart';
 
 void main() {
@@ -20,6 +21,14 @@ void main() {
           password: 'secret',
           urls: const ['https://example.com'],
           notes: 'note',
+          totp: const TotpConfig(
+            secret: 'JBSWY3DPEHPK3PXP',
+            algorithm: TotpAlgorithm.sha256,
+            digits: 8,
+            period: 60,
+            issuer: 'Example',
+            account: 'user@example.com',
+          ),
           favorite: true,
           createdAt: now,
           updatedAt: now,
@@ -38,6 +47,10 @@ void main() {
     expect(decoded.id, original.id);
     expect(decoded.items.single.password, 'secret');
     expect(decoded.items.single.urls, ['https://example.com']);
+    expect(decoded.items.single.totp?.secret, 'JBSWY3DPEHPK3PXP');
+    expect(decoded.items.single.totp?.algorithm, TotpAlgorithm.sha256);
+    expect(decoded.items.single.totp?.digits, 8);
+    expect(decoded.items.single.totp?.period, 60);
     expect(decoded.tombstones, ['deleted-id']);
     expect(decoded.webDavCredentials?.username, 'person@example.com');
     expect(decoded.webDavCredentials?.password, 'application-password');
@@ -54,5 +67,6 @@ void main() {
     });
 
     expect(decoded.webDavCredentials, isNull);
+    expect(decoded.schemaVersion, 4);
   });
 }

@@ -8,6 +8,8 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>松匣</string>
+	<key>NSCameraUsageDescription</key>
+	<string>用于扫描动态验证码二维码。</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>用于验证身份并解锁松匣密码库</string>
 	<key>CFBundleExecutable</key>

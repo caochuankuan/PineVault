@@ -3,6 +3,7 @@ import 'package:pine_vault/data/services/kdbx_transfer_service.dart';
 import 'package:pine_vault/domain/models/vault.dart';
 import 'package:pine_vault/domain/models/vault_group.dart';
 import 'package:pine_vault/domain/models/vault_item.dart';
+import 'package:pine_vault/domain/models/totp_config.dart';
 
 void main() {
   final createdAt = DateTime.utc(2026, 9, 7, 8);
@@ -30,6 +31,14 @@ void main() {
         password: 'secret-value',
         urls: const ['https://example.com'],
         notes: '测试备注',
+        totp: const TotpConfig(
+          secret: 'JBSWY3DPEHPK3PXP',
+          algorithm: TotpAlgorithm.sha256,
+          digits: 8,
+          period: 60,
+          issuer: '示例网站',
+          account: 'user@example.com',
+        ),
         favorite: true,
         createdAt: createdAt,
         updatedAt: updatedAt,
@@ -53,6 +62,13 @@ void main() {
     expect(entry.password, 'secret-value');
     expect(entry.url, 'https://example.com');
     expect(entry.notes, '测试备注');
+    expect(entry.totp?.secret, 'JBSWY3DPEHPK3PXP');
+    expect(entry.totp?.algorithm, TotpAlgorithm.sha256);
+    expect(entry.totp?.digits, 8);
+    expect(entry.totp?.period, 60);
+    expect(entry.totp?.issuer, '示例网站');
+    expect(entry.totp?.account, 'user@example.com');
+    expect(entry.totpError, isNull);
     expect(entry.favorite, isTrue);
     expect(entry.createdAt, createdAt);
     expect(entry.updatedAt, updatedAt);

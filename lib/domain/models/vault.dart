@@ -47,8 +47,8 @@ class Vault {
               .toList(growable: false);
     return Vault(
       id: json['id'] as String,
-      schemaVersion: (json['schemaVersion'] as int? ?? 1) < 3
-          ? 3
+      schemaVersion: (json['schemaVersion'] as int? ?? 1) < 4
+          ? 4
           : json['schemaVersion'] as int,
       createdAt: createdAt,
       updatedAt: updatedAt,
@@ -102,7 +102,7 @@ class Vault {
   }) {
     return Vault(
       id: id,
-      schemaVersion: 3,
+      schemaVersion: 4,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       items: List.unmodifiable(items ?? this.items),

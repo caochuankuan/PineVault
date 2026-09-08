@@ -4,10 +4,24 @@ import 'package:kpasslib/kpasslib.dart';
 
 import '../../domain/models/vault.dart';
 import '../../domain/models/vault_item.dart';
+import '../../domain/models/totp_config.dart';
 import '../models/kdbx_transfer_data.dart';
+import 'totp_service.dart';
+
+typedef _ImportedTotp = ({TotpConfig? config, String? error});
 
 class KdbxTransferService {
   static const _favoriteTag = 'PineVault:Favorite';
+  static const _totpField = 'otp';
+  static const _totpSecretField = 'TimeOtp-Secret-Base32';
+  static const _totpPeriodField = 'TimeOtp-Period';
+  static const _totpLengthField = 'TimeOtp-Length';
+  static const _totpAlgorithmField = 'TimeOtp-Algorithm';
+
+  const KdbxTransferService({TotpService totpService = const TotpService()})
+    : _totpService = totpService;
+
+  final TotpService _totpService;
 
   Future<KdbxImportData> decode({
     required Uint8List bytes,
@@ -88,6 +102,7 @@ class KdbxTransferService {
     for (final entry in entries) {
       final createdAt = entry.times.creation.time?.toUtc() ?? now;
       final updatedAt = entry.times.modification.time?.toUtc() ?? createdAt;
+      final importedTotp = _readTotp(entry);
       output.add(
         KdbxImportEntry(
           groupName: groupName,
@@ -99,6 +114,8 @@ class KdbxTransferService {
           tags: List.unmodifiable(
             (entry.tags ?? const []).where((tag) => tag != _favoriteTag),
           ),
+          totp: importedTotp.config,
+          totpError: importedTotp.error,
           favorite:
               entry.icon == KdbxIcon.star ||
               (entry.tags?.contains(_favoriteTag) ?? false),
@@ -111,6 +128,48 @@ class KdbxTransferService {
 
   String _field(KdbxEntry entry, String name) => entry.fields[name]?.text ?? '';
 
+  _ImportedTotp _readTotp(KdbxEntry entry) {
+    final otp = _field(entry, _totpField).trim();
+    final nativeSecret = _field(entry, _totpSecretField).trim();
+    if (otp.isEmpty && nativeSecret.isEmpty) return (config: null, error: null);
+    try {
+      if (otp.isNotEmpty) return (config: _totpService.parse(otp), error: null);
+      final base = _totpService.parse(nativeSecret);
+      final digitsText = _field(entry, _totpLengthField).trim();
+      final periodText = _field(entry, _totpPeriodField).trim();
+      final digits = digitsText.isEmpty ? 6 : int.tryParse(digitsText);
+      final period = periodText.isEmpty ? 30 : int.tryParse(periodText);
+      if (digits != 6 && digits != 8) {
+        throw const FormatException('动态验证码位数只支持 6 或 8');
+      }
+      if (period == null || period <= 0) {
+        throw const FormatException('动态验证码周期无效');
+      }
+      final algorithm = _nativeAlgorithm(_field(entry, _totpAlgorithmField));
+      return (
+        config: base.copyWith(
+          algorithm: algorithm,
+          digits: digits,
+          period: period,
+          issuer: _field(entry, 'Title').trim(),
+          account: _field(entry, 'UserName').trim(),
+        ),
+        error: null,
+      );
+    } on FormatException catch (error) {
+      return (config: null, error: error.message.toString());
+    }
+  }
+
+  TotpAlgorithm _nativeAlgorithm(String value) {
+    return switch (value.trim().toUpperCase().replaceAll('-', '')) {
+      '' || 'SHA1' || 'HMACSHA1' => TotpAlgorithm.sha1,
+      'SHA256' || 'HMACSHA256' => TotpAlgorithm.sha256,
+      'SHA512' || 'HMACSHA512' => TotpAlgorithm.sha512,
+      _ => throw const FormatException('不支持该动态验证码算法'),
+    };
+  }
+
   void _writeEntry(KdbxDatabase database, KdbxGroup group, VaultItem item) {
     final entry = database.createEntry(parent: group);
     entry.fields.addAll({
@@ -121,6 +180,25 @@ class KdbxTransferService {
         text: item.urls.isEmpty ? '' : item.urls.first,
       ),
       'Notes': KdbxTextField.fromText(text: item.notes),
+      if (item.totp case final totp?) ...{
+        _totpField: KdbxTextField.fromText(
+          text: _totpService.toUri(totp).toString(),
+          protected: true,
+        ),
+        _totpSecretField: KdbxTextField.fromText(
+          text: _totpService.normalizeSecret(totp.secret),
+          protected: true,
+        ),
+        _totpPeriodField: KdbxTextField.fromText(text: totp.period.toString()),
+        _totpLengthField: KdbxTextField.fromText(text: totp.digits.toString()),
+        _totpAlgorithmField: KdbxTextField.fromText(
+          text: switch (totp.algorithm) {
+            TotpAlgorithm.sha1 => 'HMAC-SHA-1',
+            TotpAlgorithm.sha256 => 'HMAC-SHA-256',
+            TotpAlgorithm.sha512 => 'HMAC-SHA-512',
+          },
+        ),
+      },
     });
     entry.icon = item.favorite ? KdbxIcon.star : KdbxIcon.key;
     entry.tags = [...item.tags, if (item.favorite) _favoriteTag];

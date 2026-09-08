@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/models/vault.dart';
 import '../../domain/models/vault_item.dart';
+import '../../domain/models/totp_config.dart';
 import '../../domain/models/vault_group.dart';
 import '../../domain/models/webdav_configuration.dart';
 import '../models/kdbx_transfer_data.dart';
@@ -124,7 +125,7 @@ class VaultRepository {
     final now = DateTime.now().toUtc();
     final vault = Vault(
       id: _uuid.v4(),
-      schemaVersion: 3,
+      schemaVersion: 4,
       createdAt: now,
       updatedAt: now,
       items: const [],
@@ -196,6 +197,7 @@ class VaultRepository {
     required String url,
     required String notes,
     List<String> tags = const [],
+    TotpConfig? totp,
     required bool favorite,
   }) async {
     final vault = _requireVault();
@@ -211,6 +213,7 @@ class VaultRepository {
             urls: url.trim().isEmpty ? const [] : [url.trim()],
             notes: notes,
             tags: tags,
+            totp: totp,
             favorite: favorite,
             createdAt: now,
             updatedAt: now,
@@ -224,6 +227,8 @@ class VaultRepository {
             urls: url.trim().isEmpty ? const [] : [url.trim()],
             notes: notes,
             tags: tags,
+            totp: totp,
+            clearTotp: totp == null,
             favorite: favorite,
             updatedAt: now,
             revision: existing.revision + 1,
@@ -390,6 +395,7 @@ class VaultRepository {
           urls: imported.url.trim().isEmpty ? const [] : [imported.url.trim()],
           notes: imported.notes,
           tags: imported.tags,
+          totp: imported.totp,
           favorite: imported.favorite,
           createdAt: imported.createdAt,
           updatedAt: imported.updatedAt,

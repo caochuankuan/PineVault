@@ -1,3 +1,5 @@
+import '../../domain/models/totp_config.dart';
+
 class KdbxImportData {
   const KdbxImportData({required this.entries});
 
@@ -13,6 +15,8 @@ class KdbxImportEntry {
     required this.url,
     required this.notes,
     this.tags = const [],
+    this.totp,
+    this.totpError,
     required this.favorite,
     required this.createdAt,
     required this.updatedAt,
@@ -25,6 +29,8 @@ class KdbxImportEntry {
   final String url;
   final String notes;
   final List<String> tags;
+  final TotpConfig? totp;
+  final String? totpError;
   final bool favorite;
   final DateTime createdAt;
   final DateTime updatedAt;
