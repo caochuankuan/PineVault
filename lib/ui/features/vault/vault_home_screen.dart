@@ -1014,7 +1014,6 @@ class _VaultList extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child: FilterChip(
-                  avatar: const Icon(Icons.timer_outlined, size: 18),
                   label: const Text('TOTP'),
                   selected:
                       viewModel.selectedGroupId == VaultViewModel.totpGroupId,
