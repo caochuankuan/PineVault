@@ -27,6 +27,9 @@ class DeviceUnlockService {
 
   static const _storageKey = 'pine_vault_device_unlock_key_v1';
   static const _markerFileName = 'device_unlock.json';
+  static const _macChannel = MethodChannel(
+    'app.pinevault.client/device_unlock_macos',
+  );
 
   static const _androidOptions = AndroidOptions.biometric(
     enforceBiometrics: true,
@@ -63,6 +66,9 @@ class DeviceUnlockService {
   Future<bool> isAvailable() async {
     if (!platformSupported) return false;
     try {
+      if (Platform.isMacOS) {
+        return await _macChannel.invokeMethod<bool>('isAvailable') ?? false;
+      }
       return await _authentication.isDeviceSupported();
     } on Object {
       return false;
@@ -81,8 +87,24 @@ class DeviceUnlockService {
     if (!await isAvailable()) {
       throw const DeviceUnlockException('当前设备没有可用的系统验证方式');
     }
-    if (!Platform.isAndroid && !await _authenticate('验证身份以开启设备验证解锁')) {
+    if (!Platform.isAndroid &&
+        !Platform.isMacOS &&
+        !await _authenticate('验证身份以开启设备验证解锁')) {
       throw const DeviceUnlockException('设备验证已取消');
+    }
+
+    if (Platform.isMacOS) {
+      try {
+        await _macChannel.invokeMethod<void>('enable', {
+          'vaultId': vaultId,
+          'vaultKey': vaultKey,
+        });
+        await _writeMarker(vaultId);
+        return;
+      } catch (error) {
+        await _deleteStoredKey();
+        throw DeviceUnlockException(_readableStorageError(error));
+      }
     }
 
     final payload = jsonEncode({
@@ -108,6 +130,21 @@ class DeviceUnlockService {
   Future<Uint8List> readVaultKey(String vaultId) async {
     if (!await isEnabledFor(vaultId)) {
       throw const DeviceUnlockException('本机尚未开启设备验证解锁');
+    }
+    if (Platform.isMacOS) {
+      try {
+        final rawKey = await _macChannel.invokeMethod<Uint8List>('read', {
+          'vaultId': vaultId,
+        });
+        if (rawKey == null) {
+          throw const DeviceUnlockException('设备解锁信息已失效，请使用主密码重新绑定');
+        }
+        return rawKey;
+      } on DeviceUnlockException {
+        rethrow;
+      } catch (error) {
+        throw DeviceUnlockException(_readableStorageError(error));
+      }
     }
     if (Platform.isWindows && !await _authenticate('验证身份以解锁松匣')) {
       throw const DeviceUnlockException('设备验证已取消');
@@ -170,12 +207,18 @@ class DeviceUnlockService {
     }
   }
 
-  Future<void> _deleteStoredKey() => _storage.delete(
-    key: _storageKey,
-    aOptions: _androidOptions,
-    iOptions: _iosOptions,
-    mOptions: _macOptions,
-  );
+  Future<void> _deleteStoredKey() async {
+    if (Platform.isMacOS) {
+      await _macChannel.invokeMethod<void>('disable');
+      return;
+    }
+    await _storage.delete(
+      key: _storageKey,
+      aOptions: _androidOptions,
+      iOptions: _iosOptions,
+      mOptions: _macOptions,
+    );
+  }
 
   Future<Map<String, dynamic>?> _readMarker() async {
     try {
@@ -205,6 +248,15 @@ class DeviceUnlockService {
   String _readableStorageError(Object error) {
     if (error is PlatformException) {
       final message = error.message?.trim();
+      if (error.code == 'device_unavailable') {
+        return '此 Mac 没有可用的 Secure Enclave';
+      }
+      if (error.code == 'authentication_failed') {
+        return '设备验证失败或已取消';
+      }
+      if (error.code == 'binding_invalid') {
+        return '设备解锁信息已失效，请使用主密码重新绑定';
+      }
       if (error.code == '-34018' || message?.contains('-34018') == true) {
         return 'macOS 设备安全存储权限未生效，请重新启动应用后再试';
       }

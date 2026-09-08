@@ -105,8 +105,8 @@ Dart 运行时无法保证垃圾回收前立即覆写所有字符串内存，因
 ### 4.5 设备验证解锁
 
 - 开启前必须用当前主密码验证并取得现有 `VaultKey`，主密码本身不写入磁盘。
-- Android 使用要求用户认证的 Android Keystore 存储；iOS/macOS 使用带 `userPresence` 访问控制的 Keychain；Windows 使用 Windows Hello 验证和 DPAPI 用户级存储。
-- macOS 自用构建使用默认登录 Keychain，不声明 `keychain-access-groups`。由于沙盒 Keychain entitlement 会强制要求开发证书，当前 ad-hoc Runner 关闭 App Sandbox；未来正式分发时必须恢复 Sandbox、启用 Keychain capability 并使用对应签名。
+- Android 使用要求用户认证的 Android Keystore 存储；iOS 使用带 `userPresence` 访问控制的 Keychain；Windows 使用 Windows Hello 验证和 DPAPI 用户级存储。
+- macOS 使用带 `userPresence` 访问控制的 Secure Enclave P-256 私钥，经 ECDH/HKDF 派生 AES-GCM 密钥包装 `VaultKey`。磁盘只保存 Secure Enclave 的设备绑定私钥表示、对端公钥、随机盐和密文，不访问 Keychain，不要求开发者证书，并保持 App Sandbox 开启。
 - 本地普通标记文件只记录格式版本、密码库 ID 和开关状态，不包含密钥。
 - 绑定信息不得加入密码库 payload、导出文件或 WebDAV 同步；每台设备独立开启和关闭。
 - 修改主密码仅重新包装同一个 `VaultKey`，因此不会使现有设备绑定失效。
