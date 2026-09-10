@@ -107,7 +107,7 @@ jobs:
           storePassword=$ANDROID_KEYSTORE_PASSWORD
           keyPassword=$ANDROID_KEY_PASSWORD
           keyAlias=$ANDROID_KEY_ALIAS
-          storeFile=app/pinevault-release.jks
+          storeFile=pinevault-release.jks
           EOF
 
       - name: Build Android release APK
