@@ -56,6 +56,7 @@ class DeviceUnlockService {
   final FlutterSecureStorage _storage;
   final LocalAuthentication _authentication;
   final DirectoryProvider _directoryProvider;
+  bool _androidStorageReady = false;
 
   bool get platformSupported =>
       Platform.isAndroid ||
@@ -120,6 +121,7 @@ class DeviceUnlockService {
         iOptions: _iosOptions,
         mOptions: _macOptions,
       );
+      if (Platform.isAndroid) _androidStorageReady = true;
       await _writeMarker(vaultId);
     } catch (error) {
       await _deleteStoredKey();
@@ -127,7 +129,10 @@ class DeviceUnlockService {
     }
   }
 
-  Future<Uint8List> readVaultKey(String vaultId) async {
+  Future<Uint8List> readVaultKey(
+    String vaultId, {
+    bool requireFreshAuthentication = false,
+  }) async {
     if (!await isEnabledFor(vaultId)) {
       throw const DeviceUnlockException('本机尚未开启设备验证解锁');
     }
@@ -149,6 +154,12 @@ class DeviceUnlockService {
     if (Platform.isWindows && !await _authenticate('验证身份以解锁松匣')) {
       throw const DeviceUnlockException('设备验证已取消');
     }
+    if (Platform.isAndroid &&
+        requireFreshAuthentication &&
+        _androidStorageReady &&
+        !await _authenticate('验证身份以解锁松匣')) {
+      throw const DeviceUnlockException('设备验证已取消');
+    }
 
     try {
       final encoded = await _storage.read(
@@ -157,6 +168,7 @@ class DeviceUnlockService {
         iOptions: _iosOptions,
         mOptions: _macOptions,
       );
+      if (Platform.isAndroid) _androidStorageReady = true;
       if (encoded == null) {
         throw const DeviceUnlockException('设备解锁信息已失效，请使用主密码重新绑定');
       }
@@ -218,6 +230,7 @@ class DeviceUnlockService {
       iOptions: _iosOptions,
       mOptions: _macOptions,
     );
+    if (Platform.isAndroid) _androidStorageReady = false;
   }
 
   Future<Map<String, dynamic>?> _readMarker() async {

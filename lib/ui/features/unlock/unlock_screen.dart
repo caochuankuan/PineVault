@@ -11,6 +11,7 @@ class UnlockScreen extends StatefulWidget {
     required this.onUnlock,
     required this.deviceUnlockEnabled,
     required this.onDeviceUnlock,
+    this.automaticDeviceUnlock = true,
     this.errorMessage,
   });
 
@@ -19,6 +20,7 @@ class UnlockScreen extends StatefulWidget {
   final UnlockVaultCallback onUnlock;
   final bool deviceUnlockEnabled;
   final Future<void> Function() onDeviceUnlock;
+  final bool automaticDeviceUnlock;
 
   @override
   State<UnlockScreen> createState() => _UnlockScreenState();
@@ -39,7 +41,8 @@ class _UnlockScreenState extends State<UnlockScreen> {
   @override
   void didUpdateWidget(UnlockScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!oldWidget.deviceUnlockEnabled && widget.deviceUnlockEnabled) {
+    if ((!oldWidget.deviceUnlockEnabled && widget.deviceUnlockEnabled) ||
+        (!oldWidget.automaticDeviceUnlock && widget.automaticDeviceUnlock)) {
       _requestAutomaticDeviceUnlock();
     }
   }
@@ -142,7 +145,11 @@ class _UnlockScreenState extends State<UnlockScreen> {
   }
 
   void _requestAutomaticDeviceUnlock() {
-    if (_autoUnlockRequested || !widget.deviceUnlockEnabled) return;
+    if (_autoUnlockRequested ||
+        !widget.deviceUnlockEnabled ||
+        !widget.automaticDeviceUnlock) {
+      return;
+    }
     _autoUnlockRequested = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !widget.busy) widget.onDeviceUnlock();

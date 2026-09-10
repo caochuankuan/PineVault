@@ -72,6 +72,8 @@ class VaultViewModel extends ChangeNotifier {
   bool _deviceUnlockSupported = false;
   bool _deviceUnlockEnabled = false;
   bool _deviceUnlockBusy = false;
+  bool _automaticDeviceUnlock = true;
+  int _sessionVersion = 0;
 
   VaultAppState get state => _state;
   String? get errorMessage => _errorMessage;
@@ -83,6 +85,7 @@ class VaultViewModel extends ChangeNotifier {
   bool get showPasswords => _showPasswords;
   bool get showWebsites => _showWebsites;
   bool get showTotp => _showTotp;
+  bool get automaticDeviceUnlock => _automaticDeviceUnlock;
   bool get shouldShowTotp => _showTotp || _selectedGroupId == totpGroupId;
   VaultSortOrder get sortOrder => _sortOrder;
   bool get sortReversed => _sortReversed;
@@ -196,6 +199,7 @@ class VaultViewModel extends ChangeNotifier {
       operation: () => _repository.unlock(masterPassword),
     );
     if (succeeded) {
+      _automaticDeviceUnlock = true;
       _startPeriodicSync();
       unawaited(_performSync(trigger: '解锁自动同步', quietIfUnconfigured: true));
     }
@@ -209,9 +213,13 @@ class VaultViewModel extends ChangeNotifier {
     Uint8List? rawKey;
     try {
       final vaultId = await _repository.storedVaultId();
-      rawKey = await _deviceUnlockService.readVaultKey(vaultId);
+      rawKey = await _deviceUnlockService.readVaultKey(
+        vaultId,
+        requireFreshAuthentication: true,
+      );
       await _repository.unlockWithDeviceKey(rawKey);
       _state = VaultAppState.unlocked;
+      _automaticDeviceUnlock = true;
       _startPeriodicSync();
       notifyListeners();
       unawaited(_performSync(trigger: '解锁自动同步', quietIfUnconfigured: true));
@@ -345,12 +353,16 @@ class VaultViewModel extends ChangeNotifier {
     bool quietIfUnconfigured = false,
     bool forceUpload = false,
   }) async {
+    final sessionVersion = _sessionVersion;
     if (_syncRunning || _repository.vault == null) return false;
     if (!await _syncVault.isConfigured()) {
       if (!quietIfUnconfigured) {
         _errorMessage = '尚未配置 WebDAV';
         notifyListeners();
       }
+      return false;
+    }
+    if (sessionVersion != _sessionVersion || _repository.vault == null) {
       return false;
     }
     _syncRunning = true;
@@ -364,10 +376,14 @@ class VaultViewModel extends ChangeNotifier {
       final result = await _syncVault(
         forceUpload: forceUpload,
         onStage: (stage) {
+          if (sessionVersion != _sessionVersion) return;
           _syncProgress = _stageMessage(stage);
           notifyListeners();
         },
       );
+      if (sessionVersion != _sessionVersion || _repository.vault == null) {
+        return false;
+      }
       _syncMessage = switch (result.outcome) {
         VaultSyncOutcome.uploaded => '密码库已上传',
         VaultSyncOutcome.downloaded => '已应用远端更新',
@@ -384,11 +400,17 @@ class VaultViewModel extends ChangeNotifier {
         _syncMessage = '主密码已在其他设备修改，下次解锁请输入最新主密码';
       }
       await _recordHistory(trigger, true, _syncMessage!);
+      if (sessionVersion != _sessionVersion || _repository.vault == null) {
+        return false;
+      }
       _state = VaultAppState.unlocked;
       _syncProgress = null;
       notifyListeners();
       return true;
     } catch (error) {
+      if (sessionVersion != _sessionVersion || _repository.vault == null) {
+        return false;
+      }
       _state = VaultAppState.unlocked;
       _errorMessage = error.toString().replaceFirst('Bad state: ', '');
       _syncProgress = null;
@@ -565,6 +587,7 @@ class VaultViewModel extends ChangeNotifier {
     required Uint8List bytes,
     required String password,
   }) async {
+    final sessionVersion = _sessionVersion;
     _state = VaultAppState.saving;
     _errorMessage = null;
     notifyListeners();
@@ -573,6 +596,7 @@ class VaultViewModel extends ChangeNotifier {
         bytes: bytes,
         password: password,
       );
+      if (!_isSessionActive(sessionVersion)) return null;
       final preview = KdbxImportPreview(
         data: data,
         duplicateIndexes: _repository.findKdbxDuplicateIndexes(data),
@@ -581,6 +605,7 @@ class VaultViewModel extends ChangeNotifier {
       notifyListeners();
       return preview;
     } catch (error) {
+      if (!_isSessionActive(sessionVersion)) return null;
       _state = VaultAppState.unlocked;
       _errorMessage = _readableError(error);
       notifyListeners();
@@ -592,6 +617,7 @@ class VaultViewModel extends ChangeNotifier {
     KdbxImportPreview preview,
     Set<int> selectedIndexes,
   ) async {
+    final sessionVersion = _sessionVersion;
     _state = VaultAppState.saving;
     _errorMessage = null;
     notifyListeners();
@@ -605,11 +631,13 @@ class VaultViewModel extends ChangeNotifier {
         ),
         skipDuplicates: false,
       );
+      if (!_isSessionActive(sessionVersion)) return null;
       _state = VaultAppState.unlocked;
       notifyListeners();
       if (summary.itemCount > 0) _scheduleSync('KDBX 导入后自动同步');
       return summary;
     } catch (error) {
+      if (!_isSessionActive(sessionVersion)) return null;
       _state = VaultAppState.unlocked;
       _errorMessage = _readableError(error);
       notifyListeners();
@@ -620,6 +648,7 @@ class VaultViewModel extends ChangeNotifier {
   Future<Uint8List?> exportKdbx(String password) async {
     final vault = _repository.vault;
     if (vault == null) return null;
+    final sessionVersion = _sessionVersion;
     _state = VaultAppState.saving;
     _errorMessage = null;
     notifyListeners();
@@ -628,10 +657,12 @@ class VaultViewModel extends ChangeNotifier {
         vault: vault,
         password: password,
       );
+      if (!_isSessionActive(sessionVersion)) return null;
       _state = VaultAppState.unlocked;
       notifyListeners();
       return bytes;
     } catch (error) {
+      if (!_isSessionActive(sessionVersion)) return null;
       _state = VaultAppState.unlocked;
       _errorMessage = _readableError(error);
       notifyListeners();
@@ -639,14 +670,22 @@ class VaultViewModel extends ChangeNotifier {
     }
   }
 
-  void lock() {
+  void lock({bool automaticDeviceUnlock = true}) {
+    _sessionVersion++;
     _periodicSyncTimer?.cancel();
     _debouncedSyncTimer?.cancel();
     _repository.lock();
+    _automaticDeviceUnlock = automaticDeviceUnlock;
     _query = '';
     _errorMessage = null;
     _syncMessage = null;
     _state = VaultAppState.locked;
+    notifyListeners();
+  }
+
+  void allowAutomaticDeviceUnlock() {
+    if (_state != VaultAppState.locked || _automaticDeviceUnlock) return;
+    _automaticDeviceUnlock = true;
     notifyListeners();
   }
 
@@ -712,21 +751,29 @@ class VaultViewModel extends ChangeNotifier {
     required VaultAppState fallbackState,
     required Future<void> Function() operation,
   }) async {
+    final sessionVersion = _sessionVersion;
     _state = busyState;
     _errorMessage = null;
     notifyListeners();
     try {
       await operation();
+      if (sessionVersion != _sessionVersion || _repository.vault == null) {
+        return false;
+      }
       _state = VaultAppState.unlocked;
       notifyListeners();
       return true;
     } catch (error) {
+      if (sessionVersion != _sessionVersion) return false;
       _state = fallbackState;
       _errorMessage = _readableError(error);
       notifyListeners();
       return false;
     }
   }
+
+  bool _isSessionActive(int sessionVersion) =>
+      sessionVersion == _sessionVersion && _repository.vault != null;
 
   String _readableError(Object error) => error
       .toString()

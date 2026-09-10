@@ -34,6 +34,7 @@ class VaultRepository {
   Vault? _vault;
   VaultEnvelope? _envelope;
   SecureKey? _key;
+  int _sessionVersion = 0;
 
   Vault? get vault => _vault;
   String? get currentVaultId => _envelope?.vaultId;
@@ -495,6 +496,7 @@ class VaultRepository {
     if (newPassword.length < 8) {
       throw const FormatException('新主密码至少需要 8 个字符');
     }
+    final sessionVersion = _sessionVersion;
     final envelope = _envelope;
     final key = _key;
     if (envelope == null || key == null) {
@@ -507,12 +509,15 @@ class VaultRepository {
       vaultKey: key,
     );
     await _fileService.write(_codec.encodeEnvelope(updatedEnvelope));
+    if (sessionVersion != _sessionVersion || !identical(_key, key)) return;
     _envelope = updatedEnvelope;
   }
 
   Future<void> adoptKeyWrapping(String encoded) async {
+    final sessionVersion = _sessionVersion;
     final current = _envelope;
-    if (current == null || _key == null) {
+    final key = _key;
+    if (current == null || key == null) {
       throw StateError('密码库尚未解锁');
     }
     final remote = _codec.decodeEnvelope(encoded);
@@ -524,10 +529,12 @@ class VaultRepository {
       newWrappedKey: remote.wrappedKey,
     );
     await _fileService.write(_codec.encodeEnvelope(updated));
+    if (sessionVersion != _sessionVersion || !identical(_key, key)) return;
     _envelope = updated;
   }
 
   void lock() {
+    _sessionVersion++;
     _key?.dispose();
     _key = null;
     _vault = null;
@@ -535,6 +542,7 @@ class VaultRepository {
   }
 
   Future<void> _save(Vault vault) async {
+    final sessionVersion = _sessionVersion;
     final key = _key;
     final envelope = _envelope;
     if (key == null || envelope == null) {
@@ -548,6 +556,7 @@ class VaultRepository {
     final encoded = _codec.encodeEnvelope(updatedEnvelope);
     _codec.decodeEnvelope(encoded);
     await _fileService.write(encoded);
+    if (sessionVersion != _sessionVersion || !identical(_key, key)) return;
     _vault = vault;
     _envelope = updatedEnvelope;
   }
@@ -563,6 +572,7 @@ class VaultRepository {
     required VaultEnvelope envelope,
     required SecureKey key,
   }) {
+    _sessionVersion++;
     _key?.dispose();
     _vault = vault;
     _envelope = envelope;

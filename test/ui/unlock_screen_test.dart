@@ -47,4 +47,28 @@ void main() {
     await tester.pump();
     expect(deviceUnlockCalls, 0);
   });
+
+  testWidgets('waits until automatic device unlock is allowed', (tester) async {
+    var deviceUnlockCalls = 0;
+
+    Widget buildScreen(bool automaticDeviceUnlock) => MaterialApp(
+      home: UnlockScreen(
+        busy: false,
+        onUnlock: (_) async {},
+        deviceUnlockEnabled: true,
+        automaticDeviceUnlock: automaticDeviceUnlock,
+        onDeviceUnlock: () async {
+          deviceUnlockCalls++;
+        },
+      ),
+    );
+
+    await tester.pumpWidget(buildScreen(false));
+    await tester.pump();
+    expect(deviceUnlockCalls, 0);
+
+    await tester.pumpWidget(buildScreen(true));
+    await tester.pump();
+    expect(deviceUnlockCalls, 1);
+  });
 }

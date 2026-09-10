@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,16 +14,92 @@ class PineVaultApp extends StatefulWidget {
     super.key,
     required this.vaultViewModel,
     required this.webDavSettingsViewModel,
-  });
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now;
 
   final VaultViewModel vaultViewModel;
   final WebDavSettingsViewModel webDavSettingsViewModel;
+  final DateTime Function() _now;
 
   @override
   State<PineVaultApp> createState() => _PineVaultAppState();
 }
 
-class _PineVaultAppState extends State<PineVaultApp> {
+class _PineVaultAppState extends State<PineVaultApp>
+    with WidgetsBindingObserver {
+  static const _backgroundLockDelay = Duration(seconds: 60);
+  Timer? _backgroundLockTimer;
+  DateTime? _backgroundedAt;
+  bool _lockedForBackgroundTimeout = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _backgroundLockTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.inactive:
+        _scheduleBackgroundLock();
+      case AppLifecycleState.resumed:
+        _handleResumed();
+      case AppLifecycleState.detached:
+        break;
+    }
+  }
+
+  void _scheduleBackgroundLock() {
+    if (!_isVaultOpen) return;
+    _backgroundedAt ??= widget._now();
+    _backgroundLockTimer?.cancel();
+    _backgroundLockTimer = Timer(_backgroundLockDelay, () {
+      final backgroundedAt = _backgroundedAt;
+      if (backgroundedAt == null ||
+          widget._now().difference(backgroundedAt) < _backgroundLockDelay) {
+        return;
+      }
+      if (_isVaultOpen) {
+        _lockedForBackgroundTimeout = true;
+        widget.vaultViewModel.lock(automaticDeviceUnlock: false);
+      }
+    });
+  }
+
+  void _handleResumed() {
+    final backgroundedAt = _backgroundedAt;
+    _backgroundedAt = null;
+    _backgroundLockTimer?.cancel();
+    _backgroundLockTimer = null;
+    if (_lockedForBackgroundTimeout) {
+      _lockedForBackgroundTimeout = false;
+      widget.vaultViewModel.allowAutomaticDeviceUnlock();
+      return;
+    }
+    if (backgroundedAt != null &&
+        widget._now().difference(backgroundedAt) >= _backgroundLockDelay &&
+        _isVaultOpen) {
+      widget.vaultViewModel.lock();
+    }
+  }
+
+  bool get _isVaultOpen => switch (widget.vaultViewModel.state) {
+    VaultAppState.unlocked ||
+    VaultAppState.saving ||
+    VaultAppState.syncing => true,
+    _ => false,
+  };
+
   @override
   Widget build(BuildContext context) {
     final lightScheme = ColorScheme.fromSeed(
@@ -120,6 +198,7 @@ class _AppRouter extends StatelessWidget {
             onUnlock: viewModel.unlock,
             deviceUnlockEnabled: viewModel.deviceUnlockEnabled,
             onDeviceUnlock: viewModel.unlockWithDevice,
+            automaticDeviceUnlock: viewModel.automaticDeviceUnlock,
           ),
           VaultAppState.unlocked ||
           VaultAppState.saving ||
