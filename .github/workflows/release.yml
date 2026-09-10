@@ -1,4 +1,4 @@
-name: Build desktop and Android artifacts
+name: Build release artifacts
 
 on:
   push:
@@ -74,6 +74,36 @@ jobs:
           path: PineVault-windows-${{ github.ref_name }}.zip
           if-no-files-found: error
 
+  build-ios:
+    name: Build iOS
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.41.9'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS release without code signing
+        run: flutter build ios --release --no-codesign
+
+      - name: Package iOS app
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app PineVault-ios-${GITHUB_REF_NAME}.zip
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PineVault-ios-${{ github.ref_name }}
+          path: PineVault-ios-${{ github.ref_name }}.zip
+          if-no-files-found: error
+
   build-android:
     name: Build Android
     runs-on: ubuntu-24.04
@@ -128,6 +158,7 @@ jobs:
     needs:
       - build-macos
       - build-windows
+      - build-ios
       - build-android
     runs-on: ubuntu-24.04
     steps:
@@ -140,6 +171,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
+          name: 松匣 ${{ github.ref_name }}
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           fail_on_unmatched_files: true
