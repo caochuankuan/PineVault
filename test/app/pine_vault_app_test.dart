@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pine_vault/app/pine_vault_app.dart';
+import 'package:pine_vault/ui/features/backup/backup_view_model.dart';
 import 'package:pine_vault/domain/models/vault_group.dart';
 import 'package:pine_vault/domain/models/vault_item.dart';
 import 'package:pine_vault/ui/features/settings/webdav_settings_view_model.dart';
@@ -16,6 +17,7 @@ void main() {
         PineVaultApp(
           vaultViewModel: vaultViewModel,
           webDavSettingsViewModel: _FakeWebDavSettingsViewModel(),
+          backupViewModel: _FakeBackupViewModel(),
           now: () => now,
         ),
       );
@@ -47,6 +49,7 @@ void main() {
       PineVaultApp(
         vaultViewModel: vaultViewModel,
         webDavSettingsViewModel: _FakeWebDavSettingsViewModel(),
+        backupViewModel: _FakeBackupViewModel(),
         now: () => now,
       ),
     );
@@ -60,6 +63,17 @@ void main() {
     expect(vaultViewModel.lockCalls, 0);
     expect(vaultViewModel.state, VaultAppState.unlocked);
   });
+}
+
+class _FakeBackupViewModel extends ChangeNotifier implements BackupViewModel {
+  @override
+  String? get message => null;
+
+  @override
+  Future<bool> checkAutomatic() async => true;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void _sendToBackground(WidgetTester tester) {

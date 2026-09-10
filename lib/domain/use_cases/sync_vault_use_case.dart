@@ -104,6 +104,26 @@ class SyncVaultUseCase {
         ? null
         : _vaultRepository.decryptEncryptedVault(state.baseEnvelope);
     onStage?.call(VaultSyncStage.merging);
+    if (base != null && _sameVault(local, base) && !_sameVault(remote, base)) {
+      final wrappingChanged = !_sameWrapping(
+        remoteEncoded,
+        state!.baseEnvelope,
+      );
+      if (wrappingChanged) {
+        await _vaultRepository.adoptKeyWrapping(remoteEncoded);
+      }
+      await _vaultRepository.replaceVault(remote);
+      final currentEncoded = _vaultRepository.exportEncryptedVault();
+      await _stateService.write(
+        local.id,
+        SyncState(baseEnvelope: currentEncoded, etag: remoteFile.etag),
+      );
+      return VaultSyncResult(
+        outcome: VaultSyncOutcome.downloaded,
+        conflictCount: 0,
+        masterPasswordChanged: wrappingChanged,
+      );
+    }
     final merged = _mergeService.merge(
       base: base,
       local: local,

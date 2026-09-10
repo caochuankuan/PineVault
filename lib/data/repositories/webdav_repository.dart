@@ -113,6 +113,35 @@ class WebDavRepository {
     );
   }
 
+  Future<void> ensureBackupDirectory(String vaultId) async {
+    await _service.ensureBackupDirectory(await requireCredentials(), vaultId);
+  }
+
+  Future<List<WebDavBackupFile>> listBackups(String vaultId) async {
+    return _service.listBackups(await requireCredentials(), vaultId);
+  }
+
+  Future<void> uploadBackup(
+    String vaultId,
+    String name,
+    List<int> bytes,
+  ) async {
+    return _service.uploadBackup(
+      await requireCredentials(),
+      vaultId,
+      name,
+      bytes,
+    );
+  }
+
+  Future<WebDavRemoteFile> downloadBackup(String vaultId, String name) async {
+    return _service.downloadBackup(await requireCredentials(), vaultId, name);
+  }
+
+  Future<void> deleteBackup(String vaultId, String name) async {
+    return _service.deleteBackup(await requireCredentials(), vaultId, name);
+  }
+
   WebDavCredentials _credentials({
     required String serverUrl,
     required String username,

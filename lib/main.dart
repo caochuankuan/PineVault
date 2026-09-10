@@ -11,6 +11,7 @@ Future<void> main() async {
     PineVaultApp(
       vaultViewModel: dependencies.vaultViewModel,
       webDavSettingsViewModel: dependencies.webDavSettingsViewModel,
+      backupViewModel: dependencies.backupViewModel,
     ),
   );
 }

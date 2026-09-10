@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../ui/features/onboarding/setup_screen.dart';
+import '../ui/features/backup/backup_view_model.dart';
 import '../ui/features/settings/webdav_settings_view_model.dart';
 import '../ui/features/unlock/unlock_screen.dart';
 import '../ui/features/vault/vault_home_screen.dart';
@@ -14,11 +15,13 @@ class PineVaultApp extends StatefulWidget {
     super.key,
     required this.vaultViewModel,
     required this.webDavSettingsViewModel,
+    required this.backupViewModel,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
 
   final VaultViewModel vaultViewModel;
   final WebDavSettingsViewModel webDavSettingsViewModel;
+  final BackupViewModel backupViewModel;
   final DateTime Function() _now;
 
   @override
@@ -113,6 +116,7 @@ class _PineVaultAppState extends State<PineVaultApp>
       providers: [
         ChangeNotifierProvider.value(value: widget.vaultViewModel),
         ChangeNotifierProvider.value(value: widget.webDavSettingsViewModel),
+        ChangeNotifierProvider.value(value: widget.backupViewModel),
       ],
       child: MaterialApp(
         title: 'PineVault',

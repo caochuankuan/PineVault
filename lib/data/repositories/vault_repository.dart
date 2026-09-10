@@ -102,6 +102,33 @@ class VaultRepository {
     }
   }
 
+  String prepareRestoreExisting(String masterPassword, String encoded) {
+    final current = _requireVault();
+    final envelope = _codec.decodeEnvelope(encoded);
+    if (envelope.vaultId != current.id) {
+      throw const FormatException('备份不属于当前密码库');
+    }
+    final unlocked = _cryptoService.unlock(
+      masterPassword: masterPassword,
+      envelope: envelope,
+    );
+    try {
+      final restoredVault = unlocked.vault.copyWith(
+        webDavCredentials: current.webDavCredentials,
+        clearWebDavCredentials: current.webDavCredentials == null,
+      );
+      return _codec.encodeEnvelope(
+        _cryptoService.encryptVault(
+          envelope: unlocked.envelope,
+          key: unlocked.key,
+          vault: restoredVault,
+        ),
+      );
+    } finally {
+      unlocked.key.dispose();
+    }
+  }
+
   Future<void> restore(String masterPassword, String encoded) async {
     if (await hasVault()) throw StateError('本机已经存在密码库');
     final envelope = _codec.decodeEnvelope(encoded);
@@ -120,6 +147,43 @@ class VaultRepository {
       envelope: unlocked.envelope,
       key: unlocked.key,
     );
+  }
+
+  Future<void> restoreExisting(String masterPassword, String encoded) async {
+    final sessionVersion = _sessionVersion;
+    final current = _requireVault();
+    final envelope = _codec.decodeEnvelope(encoded);
+    if (envelope.vaultId != current.id) {
+      throw const FormatException('备份不属于当前密码库');
+    }
+    final unlocked = _cryptoService.unlock(
+      masterPassword: masterPassword,
+      envelope: envelope,
+    );
+    try {
+      final restoredVault = unlocked.vault.copyWith(
+        webDavCredentials: current.webDavCredentials,
+        clearWebDavCredentials: current.webDavCredentials == null,
+      );
+      final restoredEnvelope = _cryptoService.encryptVault(
+        envelope: unlocked.envelope,
+        key: unlocked.key,
+        vault: restoredVault,
+      );
+      await _fileService.write(_codec.encodeEnvelope(restoredEnvelope));
+      if (sessionVersion != _sessionVersion) {
+        unlocked.key.dispose();
+        return;
+      }
+      _replaceSession(
+        vault: restoredVault,
+        envelope: restoredEnvelope,
+        key: unlocked.key,
+      );
+    } catch (_) {
+      unlocked.key.dispose();
+      rethrow;
+    }
   }
 
   Future<void> create(String masterPassword) async {

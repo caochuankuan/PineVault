@@ -93,6 +93,71 @@ void main() {
     expect(remote?.etag, '"remote"');
   });
 
+  test('lists WebDAV backup files from a multistatus response', () async {
+    final service = WebDavService(
+      client: MockClient(
+        (_) async => http.Response('''<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response><d:href>/dav/Apps/PineVault/backups/vault-id/</d:href></d:response>
+  <d:response><d:href>/dav/Apps/PineVault/backups/vault-id/auto-20260910-120000.pvlt</d:href><d:propstat><d:prop><d:getcontentlength>123</d:getcontentlength><d:getlastmodified>Thu, 10 Sep 2026 12:34:56 GMT</d:getlastmodified></d:prop></d:propstat></d:response>
+</d:multistatus>''', 207),
+      ),
+    );
+
+    final backups = await service.listBackups(credentials, 'vault-id');
+
+    expect(backups, hasLength(1));
+    expect(backups.single.name, 'auto-20260910-120000.pvlt');
+    expect(backups.single.size, 123);
+    expect(backups.single.createdAt, DateTime.utc(2026, 9, 10, 12, 34, 56));
+  });
+
+  test('uploads a backup without allowing replacement', () async {
+    late http.Request captured;
+    final service = WebDavService(
+      client: MockClient((request) async {
+        captured = request;
+        return http.Response('', 201);
+      }),
+    );
+
+    await service.uploadBackup(
+      credentials,
+      'vault-id',
+      'manual-20260910-120000.pvlt',
+      [1, 2],
+    );
+
+    expect(captured.method, 'PUT');
+    expect(captured.headers['if-none-match'], '*');
+    expect(
+      captured.url.path,
+      '/dav/Apps/PineVault/backups/vault-id/manual-20260910-120000.pvlt',
+    );
+  });
+
+  test(
+    'creates shared and vault backup directories one level at a time',
+    () async {
+      final requests = <http.Request>[];
+      final service = WebDavService(
+        client: MockClient((request) async {
+          requests.add(request);
+          return http.Response('', 201);
+        }),
+      );
+
+      await service.ensureBackupDirectory(credentials, 'vault-id');
+
+      expect(requests.map((request) => request.url.path), [
+        '/dav/Apps/',
+        '/dav/Apps/PineVault/',
+        '/dav/Apps/PineVault/backups/',
+        '/dav/Apps/PineVault/backups/vault-id/',
+      ]);
+    },
+  );
+
   test(
     'maps authentication failures without exposing a response body',
     () async {

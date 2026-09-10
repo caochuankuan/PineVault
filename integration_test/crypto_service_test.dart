@@ -10,6 +10,7 @@ import 'package:pine_vault/data/services/crypto_service.dart';
 import 'package:pine_vault/data/services/vault_file_service.dart';
 import 'package:pine_vault/domain/models/vault.dart';
 import 'package:pine_vault/domain/models/vault_item.dart';
+import 'package:pine_vault/domain/models/webdav_configuration.dart';
 import 'package:sodium_libs/sodium_libs_sumo.dart';
 
 void main() {
@@ -206,6 +207,67 @@ void main() {
     await repository.unlockWithDeviceKey(rawDeviceKey);
 
     expect(repository.vault!.items.single.password, 'device-protected-secret');
+  });
+
+  testWidgets('restores an encrypted snapshot over the current vault', (
+    tester,
+  ) async {
+    final temporaryDirectory = await Directory.systemTemp.createTemp(
+      'pine_vault_restore_existing_',
+    );
+    final repository = VaultRepository(
+      cryptoService: cryptoService,
+      fileService: VaultFileService(
+        directoryProvider: () async => temporaryDirectory,
+      ),
+      codec: codec,
+    );
+    addTearDown(() async {
+      repository.lock();
+      await temporaryDirectory.delete(recursive: true);
+    });
+
+    const password = 'correct horse battery staple';
+    await repository.create(password);
+    await repository.upsert(
+      title: 'Backup version',
+      username: 'old@example.com',
+      password: 'old-secret',
+      url: '',
+      notes: '',
+      favorite: false,
+    );
+    final backup = repository.exportEncryptedVault();
+    await repository.saveWebDavCredentials(
+      WebDavCredentials(
+        serverUri: Uri.parse('https://dav.example.test/'),
+        username: 'current@example.com',
+        password: 'application-password',
+      ),
+    );
+    final item = repository.vault!.items.single;
+    await repository.upsert(
+      existing: item,
+      title: 'Current version',
+      username: item.username,
+      password: 'current-secret',
+      url: '',
+      notes: '',
+      favorite: false,
+    );
+
+    final prepared = repository.prepareRestoreExisting(password, backup);
+    await repository.restoreExisting(password, prepared);
+
+    expect(repository.vault!.items.single.title, 'Backup version');
+    expect(repository.vault!.items.single.password, 'old-secret');
+    expect(
+      repository.vault!.webDavCredentials?.username,
+      'current@example.com',
+    );
+    repository.lock();
+    await repository.unlock(password);
+    expect(repository.vault!.items.single.title, 'Backup version');
   });
 }
 

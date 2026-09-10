@@ -348,21 +348,41 @@ class VaultViewModel extends ChangeNotifier {
 
   Future<bool> sync() => _performSync(trigger: '手动同步');
 
+  Future<T> runExclusiveVaultOperation<T>(
+    Future<T> Function() operation,
+  ) async {
+    if (_state != VaultAppState.unlocked) {
+      throw StateError('密码库正在执行其他操作');
+    }
+    final sessionVersion = _sessionVersion;
+    final hadPendingSync = _debouncedSyncTimer?.isActive ?? false;
+    _debouncedSyncTimer?.cancel();
+    _state = VaultAppState.saving;
+    notifyListeners();
+    try {
+      final result = await operation();
+      if (!_isSessionActive(sessionVersion)) {
+        throw StateError('密码库已经锁定');
+      }
+      return result;
+    } finally {
+      if (_isSessionActive(sessionVersion)) {
+        _state = VaultAppState.unlocked;
+        notifyListeners();
+        if (hadPendingSync) _scheduleSync('延迟自动同步');
+      }
+    }
+  }
+
   Future<bool> _performSync({
     required String trigger,
     bool quietIfUnconfigured = false,
     bool forceUpload = false,
   }) async {
     final sessionVersion = _sessionVersion;
-    if (_syncRunning || _repository.vault == null) return false;
-    if (!await _syncVault.isConfigured()) {
-      if (!quietIfUnconfigured) {
-        _errorMessage = '尚未配置 WebDAV';
-        notifyListeners();
-      }
-      return false;
-    }
-    if (sessionVersion != _sessionVersion || _repository.vault == null) {
+    if (_state != VaultAppState.unlocked ||
+        _syncRunning ||
+        _repository.vault == null) {
       return false;
     }
     _syncRunning = true;
@@ -373,6 +393,15 @@ class VaultViewModel extends ChangeNotifier {
     _webDavConflict = false;
     notifyListeners();
     try {
+      if (!await _syncVault.isConfigured()) {
+        if (!_isSessionActive(sessionVersion)) return false;
+        _state = VaultAppState.unlocked;
+        _syncProgress = null;
+        if (!quietIfUnconfigured) _errorMessage = '尚未配置 WebDAV';
+        notifyListeners();
+        return false;
+      }
+      if (!_isSessionActive(sessionVersion)) return false;
       final result = await _syncVault(
         forceUpload: forceUpload,
         onStage: (stage) {

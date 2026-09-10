@@ -20,6 +20,8 @@ import '../settings/change_master_password_dialog.dart';
 import '../settings/device_unlock_sheet.dart';
 import '../settings/sync_history_screen.dart';
 import '../settings/webdav_settings_screen.dart';
+import '../backup/backup_screen.dart';
+import '../backup/backup_view_model.dart';
 import 'vault_view_model.dart';
 
 part 'vault_home_kdbx.dart';
@@ -30,12 +32,21 @@ part 'vault_home_item_viewer.dart';
 part 'vault_home_item_editor.dart';
 part 'vault_home_group_selector.dart';
 
-class VaultHomeScreen extends StatelessWidget {
+class VaultHomeScreen extends StatefulWidget {
   const VaultHomeScreen({super.key});
+
+  @override
+  State<VaultHomeScreen> createState() => _VaultHomeScreenState();
+}
+
+class _VaultHomeScreenState extends State<VaultHomeScreen> {
+  bool _automaticBackupChecked = false;
+  bool _automaticBackupCheckScheduled = false;
 
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<VaultViewModel>();
+    _scheduleAutomaticBackupCheck(viewModel);
     return Scaffold(
       appBar: AppBar(
         title: const VaultBrand(compact: true),
@@ -74,6 +85,14 @@ class VaultHomeScreen extends StatelessWidget {
               PopupMenuItem(
                 value: _VaultMenuAction.history,
                 child: const _MenuRow(icon: Icons.history, label: '同步历史'),
+              ),
+              PopupMenuItem(
+                value: _VaultMenuAction.backup,
+                enabled: !viewModel.busy,
+                child: const _MenuRow(
+                  icon: Icons.backup_outlined,
+                  label: '备份与恢复',
+                ),
               ),
               PopupMenuItem(
                 value: _VaultMenuAction.groupManagement,
@@ -256,12 +275,36 @@ class VaultHomeScreen extends StatelessWidget {
             ),
     );
   }
+
+  void _scheduleAutomaticBackupCheck(VaultViewModel viewModel) {
+    if (_automaticBackupChecked ||
+        _automaticBackupCheckScheduled ||
+        viewModel.state != VaultAppState.unlocked) {
+      return;
+    }
+    _automaticBackupCheckScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final backupViewModel = context.read<BackupViewModel>();
+      final checked = await backupViewModel.checkAutomatic();
+      if (!mounted) return;
+      setState(() {
+        _automaticBackupCheckScheduled = false;
+        _automaticBackupChecked = checked;
+      });
+      final message = backupViewModel.message;
+      if (checked && message != null) {
+        showAppMessage(context, message);
+      }
+    });
+  }
 }
 
 enum _VaultMenuAction {
   sync,
   webDav,
   history,
+  backup,
   groupManagement,
   changeMasterPassword,
   deviceUnlock,
@@ -314,6 +357,11 @@ Future<void> _handleMenu(BuildContext context, _VaultMenuAction action) async {
       await Navigator.push<void>(
         context,
         MaterialPageRoute(builder: (_) => const SyncHistoryScreen()),
+      );
+    case _VaultMenuAction.backup:
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute(builder: (_) => const BackupScreen()),
       );
     case _VaultMenuAction.groupManagement:
       await _showGroupManagement(context, viewModel);
