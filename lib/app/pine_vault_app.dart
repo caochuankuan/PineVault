@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -105,6 +106,9 @@ class _PineVaultAppState extends State<PineVaultApp>
 
   @override
   Widget build(BuildContext context) {
+    final windowsFontFamily = defaultTargetPlatform == TargetPlatform.windows
+        ? 'Microsoft YaHei UI'
+        : null;
     final lightScheme = ColorScheme.fromSeed(
       seedColor: const Color(0xFF176B52),
     );
@@ -123,6 +127,7 @@ class _PineVaultAppState extends State<PineVaultApp>
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: lightScheme,
+          fontFamily: windowsFontFamily,
           useMaterial3: true,
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
@@ -148,6 +153,7 @@ class _PineVaultAppState extends State<PineVaultApp>
         ),
         darkTheme: ThemeData(
           colorScheme: darkScheme,
+          fontFamily: windowsFontFamily,
           useMaterial3: true,
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
