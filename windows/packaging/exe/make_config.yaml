@@ -2,6 +2,7 @@ app_id: 3D3E5C36-B965-4FBE-8712-8A7ADFCE25A8
 publisher: 松匣
 publisher_url: https://github.com/caochuankuan/PineVault
 display_name: 松匣
+executable_name: pine_vault.exe
 create_desktop_icon: true
 setup_icon_file: windows\runner\resources\app_icon.ico
 locales:

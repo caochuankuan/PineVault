@@ -106,6 +106,10 @@ jobs:
           }
           Move-Item -Path $installers[0].FullName -Destination "松匣-Windows-${env:GITHUB_REF_NAME}-安装程序.exe"
 
+      - name: Rename Windows executable
+        shell: pwsh
+        run: Rename-Item -Path build/windows/x64/runner/Release/pine_vault.exe -NewName "松匣.exe"
+
       - name: Package Windows app
         shell: pwsh
         run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath "松匣-Windows-${env:GITHUB_REF_NAME}.zip"
