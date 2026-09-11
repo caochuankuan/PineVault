@@ -123,7 +123,7 @@ class _PineVaultAppState extends State<PineVaultApp>
         ChangeNotifierProvider.value(value: widget.backupViewModel),
       ],
       child: MaterialApp(
-        title: 'PineVault',
+        title: '松匣',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: lightScheme,

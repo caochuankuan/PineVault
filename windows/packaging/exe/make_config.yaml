@@ -1,0 +1,11 @@
+app_id: 3D3E5C36-B965-4FBE-8712-8A7ADFCE25A8
+publisher: 松匣
+publisher_url: https://github.com/caochuankuan/PineVault
+display_name: 松匣
+create_desktop_icon: true
+setup_icon_file: windows\runner\resources\app_icon.ico
+locales:
+  - en
+  - zh
+architectures_allowed: x64compatible
+architectures_install_in_64bit_mode: x64compatible

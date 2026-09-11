@@ -92,12 +92,12 @@ class VaultEnvelope {
           wrappedKey: CipherPayload.fromJson(wrappedKey),
           payload: CipherPayload.fromJson(payload),
         ),
-      _ => throw const FormatException('Invalid PineVault envelope.'),
+      _ => throw const FormatException('无效的松匣密码库文件。'),
     };
     if (envelope.magic != expectedMagic ||
         envelope.version != currentVersion ||
         envelope.kdf.algorithm != 'argon2id13') {
-      throw const FormatException('Unsupported PineVault format.');
+      throw const FormatException('不支持的松匣密码库格式。');
     }
     return envelope;
   }

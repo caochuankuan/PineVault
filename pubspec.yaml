@@ -1,5 +1,5 @@
 name: pine_vault
-description: "PineVault is a local-first encrypted password vault with WebDAV sync."
+description: "松匣是一款支持 WebDAV 同步的本地优先加密密码库。"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev

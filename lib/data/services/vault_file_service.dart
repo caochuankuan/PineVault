@@ -23,7 +23,7 @@ class VaultFileService {
     if (await files.backup.exists()) {
       return files.backup.readAsString();
     }
-    throw const FileSystemException('No PineVault file exists.');
+    throw const FileSystemException('松匣密码库文件不存在。');
   }
 
   Future<void> write(String contents) async {

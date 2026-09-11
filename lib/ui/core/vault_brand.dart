@@ -25,17 +25,11 @@ class VaultBrand extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'PineVault',
-              style: compact
-                  ? Theme.of(context).textTheme.titleLarge
-                  : Theme.of(context).textTheme.headlineSmall,
-            ),
-            Text('松匣', style: Theme.of(context).textTheme.bodySmall),
-          ],
+        Text(
+          '松匣',
+          style: compact
+              ? Theme.of(context).textTheme.titleLarge
+              : Theme.of(context).textTheme.headlineSmall,
         ),
       ],
     );

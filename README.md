@@ -1,4 +1,4 @@
-# 松匣（PineVault）
+# 松匣
 
 松匣是一个离线优先的多端密码管理器。密码库在本机加密保存，也可以通过坚果云 WebDAV 同步；WebDAV 上保存的始终是密文，不是明文密码。
 
@@ -100,7 +100,7 @@ flutter test
 ```bash
 flutter run -d macos
 flutter build macos --release
-open build/macos/Build/Products/Release/PineVault.app
+open build/macos/Build/Products/Release/松匣.app
 ```
 
 本地 Release 构建使用 ad-hoc 签名，适合个人测试；未配置 Apple Developer Team，也不是可直接提交 App Store 的签名包。

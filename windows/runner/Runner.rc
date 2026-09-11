@@ -92,9 +92,9 @@ BEGIN
             VALUE "CompanyName", "松匣" "\0"
             VALUE "FileDescription", "松匣" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "pine_vault" "\0"
+            VALUE "InternalName", "松匣" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 松匣. All rights reserved." "\0"
-            VALUE "OriginalFilename", "pine_vault.exe" "\0"
+            VALUE "OriginalFilename", "松匣.exe" "\0"
             VALUE "ProductName", "松匣" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END

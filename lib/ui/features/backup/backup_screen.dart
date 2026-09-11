@@ -104,7 +104,7 @@ class _BackupScreenState extends State<BackupScreen> {
 
   Future<void> _exportLocal(BackupViewModel viewModel) async {
     final now = DateTime.now();
-    final name = 'PineVault-${_stamp(now)}.pvlt';
+    final name = '松匣-${_stamp(now)}.pvlt';
     try {
       final snapshot = await viewModel.prepareExport();
       if (snapshot == null) {
@@ -114,7 +114,7 @@ class _BackupScreenState extends State<BackupScreen> {
         return;
       }
       final path = await FilePicker.saveFile(
-        dialogTitle: '备份 PineVault 密码库',
+        dialogTitle: '备份松匣密码库',
         fileName: name,
         bytes: utf8.encode(snapshot.encoded),
         mimeType: 'application/octet-stream',
@@ -179,7 +179,7 @@ class _BackupScreenState extends State<BackupScreen> {
   Future<void> _restoreFromFile(BackupViewModel viewModel) async {
     try {
       final file = await FilePicker.pickFile(
-        dialogTitle: '选择 PineVault 备份',
+        dialogTitle: '选择松匣备份',
         type: FileType.custom,
         allowedExtensions: const ['pvlt'],
       );

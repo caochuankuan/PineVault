@@ -71,7 +71,7 @@ class WebDavRepository {
     await _service.testConnection(credentials);
     final remoteFile = await _service.downloadVault(credentials);
     if (remoteFile == null) {
-      throw const WebDavException('远端没有 PineVault 密码库');
+      throw const WebDavException('远端没有松匣密码库');
     }
     return WebDavRestoreDownload(
       credentials: credentials,
