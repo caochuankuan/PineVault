@@ -42,18 +42,18 @@ jobs:
         run: |
           dmg_file=$(find dist -type f -name '*.dmg' -print -quit)
           test -n "$dmg_file"
-          mv "$dmg_file" "松匣-macOS-${GITHUB_REF_NAME}.dmg"
+          mv "$dmg_file" "Songxia-macOS-${GITHUB_REF_NAME}.dmg"
 
       - name: Package macOS app
-        run: ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/松匣.app 松匣-macOS-${GITHUB_REF_NAME}.zip
+        run: ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/松匣.app Songxia-macOS-${GITHUB_REF_NAME}.zip
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 松匣-macOS-${{ github.ref_name }}
+          name: Songxia-macOS-${{ github.ref_name }}
           path: |
-            松匣-macOS-${{ github.ref_name }}.dmg
-            松匣-macOS-${{ github.ref_name }}.zip
+            Songxia-macOS-${{ github.ref_name }}.dmg
+            Songxia-macOS-${{ github.ref_name }}.zip
           if-no-files-found: error
 
   build-windows:
@@ -104,23 +104,23 @@ jobs:
           if ($installers.Count -ne 1) {
             throw "Expected one installer, found $($installers.Count)"
           }
-          Move-Item -Path $installers[0].FullName -Destination "松匣-Windows-${env:GITHUB_REF_NAME}-安装程序.exe"
+          Move-Item -Path $installers[0].FullName -Destination "Songxia-Windows-${env:GITHUB_REF_NAME}-Setup.exe"
 
       - name: Rename Windows executable
         shell: pwsh
-        run: Rename-Item -Path build/windows/x64/runner/Release/pine_vault.exe -NewName "松匣.exe"
+        run: Rename-Item -Path build/windows/x64/runner/Release/pine_vault.exe -NewName "Songxia.exe"
 
       - name: Package Windows app
         shell: pwsh
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath "松匣-Windows-${env:GITHUB_REF_NAME}.zip"
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath "Songxia-Windows-${env:GITHUB_REF_NAME}.zip"
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 松匣-Windows-${{ github.ref_name }}
+          name: Songxia-Windows-${{ github.ref_name }}
           path: |
-            松匣-Windows-${{ github.ref_name }}-安装程序.exe
-            松匣-Windows-${{ github.ref_name }}.zip
+            Songxia-Windows-${{ github.ref_name }}-Setup.exe
+            Songxia-Windows-${{ github.ref_name }}.zip
           if-no-files-found: error
 
   build-ios:
@@ -144,13 +144,13 @@ jobs:
         run: flutter build ios --release --no-codesign
 
       - name: Package iOS app
-        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/松匣.app 松匣-iOS-${GITHUB_REF_NAME}.zip
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/松匣.app Songxia-iOS-${GITHUB_REF_NAME}.zip
 
       - name: Upload iOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 松匣-iOS-${{ github.ref_name }}
-          path: 松匣-iOS-${{ github.ref_name }}.zip
+          name: Songxia-iOS-${{ github.ref_name }}
+          path: Songxia-iOS-${{ github.ref_name }}.zip
           if-no-files-found: error
 
   build-android:
@@ -193,13 +193,13 @@ jobs:
         run: flutter build apk --release
 
       - name: Rename APK
-        run: cp build/app/outputs/flutter-apk/app-release.apk "松匣-Android-${GITHUB_REF_NAME}.apk"
+        run: cp build/app/outputs/flutter-apk/app-release.apk "Songxia-Android-${GITHUB_REF_NAME}.apk"
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 松匣-Android-${{ github.ref_name }}
-          path: 松匣-Android-${{ github.ref_name }}.apk
+          name: Songxia-Android-${{ github.ref_name }}
+          path: Songxia-Android-${{ github.ref_name }}.apk
           if-no-files-found: error
 
   publish-release:
