@@ -36,7 +36,7 @@ jobs:
           npm install --global appdmg@0.6.6
 
       - name: Build macOS DMG
-        run: dart pub global run fastforge:fastforge package --platform macos --targets dmg
+        run: dart pub global run fastforge:main package --platform macos --targets dmg
 
       - name: Rename macOS DMG
         run: |
@@ -95,7 +95,7 @@ jobs:
 
       - name: Build Windows installer
         shell: pwsh
-        run: dart pub global run fastforge:fastforge package --platform windows --targets exe
+        run: dart pub global run fastforge:main package --platform windows --targets exe
 
       - name: Rename Windows installer
         shell: pwsh
