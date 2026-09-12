@@ -124,6 +124,12 @@ Android Release 签名由本地被 Git 忽略的 `android/key.properties` 和 `a
 - 设备验证解锁仍需分别在 Android 真机、带 Touch ID 的 macOS、iOS 和 Windows Hello 设备上完成人工验证。
 - iOS、Windows、Linux 尚未完成与 Android/macOS 同等程度的发布验证。
 
+## 许可证
+
+Copyright (C) 2026 PineVault contributors.
+
+松匣以 [GNU Affero General Public License v3.0 only](LICENSE)（`AGPL-3.0-only`）发布。你可以使用、研究、修改和分发本项目；如果发布修改版或通过网络向用户提供修改后的程序，必须依照 AGPL v3 向相应用户提供完整对应源代码，并保留版权及许可证声明。
+
 ## 相关文档
 
 - [实施计划](docs/implementation-plan.md)
