@@ -54,6 +54,9 @@ class _VaultHomeScreenState extends State<VaultHomeScreen> {
     _scheduleAutomaticBackupCheck(viewModel);
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         title: const VaultBrand(compact: true),
         actions: [
           if (viewModel.busy)
