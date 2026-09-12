@@ -1,13 +1,46 @@
 part of 'vault_home_screen.dart';
 
 class _VaultList extends StatelessWidget {
-  const _VaultList({required this.viewModel});
+  const _VaultList({
+    required this.viewModel,
+    this.onItemTap,
+    this.selectedItemId,
+  });
 
   final VaultViewModel viewModel;
+  final ValueChanged<VaultItem>? onItemTap;
+  final String? selectedItemId;
 
   @override
   Widget build(BuildContext context) {
     final items = viewModel.items;
+    final filterChips = <Widget>[
+      FilterChip(
+        label: const Text('全部'),
+        selected: viewModel.selectedGroupId == 'all',
+        onSelected: (_) => viewModel.setSelectedGroup('all'),
+      ),
+      FilterChip(
+        label: const Text('TOTP'),
+        selected: viewModel.selectedGroupId == VaultViewModel.totpGroupId,
+        onSelected: (_) =>
+            viewModel.setSelectedGroup(VaultViewModel.totpGroupId),
+      ),
+      ...viewModel.groups.map(
+        (group) => FilterChip(
+          label: Text(group.name),
+          selected: viewModel.selectedGroupId == group.id,
+          onSelected: (_) => viewModel.setSelectedGroup(group.id),
+        ),
+      ),
+      ActionChip(
+        avatar: const Icon(Icons.add, size: 18),
+        label: const Text('新建分组'),
+        onPressed: viewModel.busy
+            ? null
+            : () => _createGroup(context, viewModel),
+      ),
+    ];
     return Column(
       children: [
         Padding(
@@ -75,46 +108,12 @@ class _VaultList extends StatelessWidget {
           ),
         SizedBox(
           height: 44,
-          child: ListView(
+          child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.only(left: 16, right: 8, bottom: 8),
-            children: [
-              FilterChip(
-                label: const Text('全部'),
-                selected: viewModel.selectedGroupId == 'all',
-                onSelected: (_) => viewModel.setSelectedGroup('all'),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: FilterChip(
-                  label: const Text('TOTP'),
-                  selected:
-                      viewModel.selectedGroupId == VaultViewModel.totpGroupId,
-                  onSelected: (_) =>
-                      viewModel.setSelectedGroup(VaultViewModel.totpGroupId),
-                ),
-              ),
-              ...viewModel.groups.map(
-                (group) => Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: FilterChip(
-                    label: Text(group.name),
-                    selected: viewModel.selectedGroupId == group.id,
-                    onSelected: (_) => viewModel.setSelectedGroup(group.id),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: ActionChip(
-                  avatar: const Icon(Icons.add, size: 18),
-                  label: const Text('新建分组'),
-                  onPressed: viewModel.busy
-                      ? null
-                      : () => _createGroup(context, viewModel),
-                ),
-              ),
-            ],
+            itemCount: filterChips.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (_, index) => filterChips[index],
           ),
         ),
         Expanded(
@@ -137,7 +136,9 @@ class _VaultList extends StatelessWidget {
                         vertical: 4,
                       ),
                       elevation: 0,
-                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      color: item.id == selectedItemId
+                          ? Theme.of(context).colorScheme.secondaryContainer
+                          : Theme.of(context).colorScheme.surfaceContainerLow,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -145,7 +146,9 @@ class _VaultList extends StatelessWidget {
                         behavior: HitTestBehavior.opaque,
                         onTap: viewModel.selectionMode
                             ? () => viewModel.toggleItemSelection(item.id)
-                            : () => _openViewer(context, viewModel, item),
+                            : onItemTap == null
+                            ? () => _openViewer(context, viewModel, item)
+                            : () => onItemTap!(item),
                         onLongPress: viewModel.selectionMode
                             ? null
                             : () => _showItemActions(context, item),

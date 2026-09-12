@@ -40,12 +40,17 @@ class VaultHomeScreen extends StatefulWidget {
 }
 
 class _VaultHomeScreenState extends State<VaultHomeScreen> {
+  static const _wideLayoutMinWidth = 900.0;
+
   bool _automaticBackupChecked = false;
   bool _automaticBackupCheckScheduled = false;
+  String? _activeItemId;
 
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<VaultViewModel>();
+    final isWideLayout =
+        MediaQuery.sizeOf(context).width >= _wideLayoutMinWidth;
     _scheduleAutomaticBackupCheck(viewModel);
     return Scaffold(
       appBar: AppBar(
@@ -58,6 +63,15 @@ class _VaultHomeScreenState extends State<VaultHomeScreen> {
                 dimension: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
+            ),
+          if (isWideLayout && !viewModel.selectionMode)
+            IconButton(
+              key: const Key('add-item'),
+              tooltip: '新建',
+              onPressed: viewModel.busy
+                  ? null
+                  : () => _openEditor(context, viewModel),
+              icon: const Icon(Icons.add),
             ),
           PopupMenuButton<_VaultMenuAction>(
             tooltip: '更多操作',
@@ -240,30 +254,65 @@ class _VaultHomeScreenState extends State<VaultHomeScreen> {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final list = _VaultList(viewModel: viewModel);
-                if (constraints.maxWidth >= 900) {
+                if (constraints.maxWidth >= _wideLayoutMinWidth) {
+                  VaultItem? activeItem;
+                  for (final item in viewModel.items) {
+                    if (item.id == _activeItemId) {
+                      activeItem = item;
+                      break;
+                    }
+                  }
+                  final listWidth = (constraints.maxWidth * 0.42).clamp(
+                    400.0,
+                    480.0,
+                  );
                   return Row(
                     children: [
-                      SizedBox(width: 360, child: list),
+                      SizedBox(
+                        width: listWidth,
+                        child: _VaultList(
+                          viewModel: viewModel,
+                          selectedItemId: activeItem?.id,
+                          onItemTap: (item) {
+                            setState(() => _activeItemId = item.id);
+                          },
+                        ),
+                      ),
                       const VerticalDivider(width: 1),
                       Expanded(
-                        child: Center(
-                          child: Text(
-                            '选择一个条目，或创建新密码',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
+                        child: activeItem == null
+                            ? Center(
+                                child: Text(
+                                  '选择一个条目，或创建新密码',
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
+                                ),
+                              )
+                            : _ItemViewer(
+                                key: ValueKey(activeItem.id),
+                                viewModel: viewModel,
+                                item: activeItem,
+                                onClose: () {
+                                  setState(() => _activeItemId = null);
+                                },
+                                onEdit: () =>
+                                    _openEditor(context, viewModel, activeItem),
+                                onDeleted: () {
+                                  setState(() => _activeItemId = null);
+                                },
+                              ),
                       ),
                     ],
                   );
                 }
-                return list;
+                return _VaultList(viewModel: viewModel);
               },
             ),
           ),
         ],
       ),
-      floatingActionButton: viewModel.selectionMode
+      floatingActionButton: isWideLayout || viewModel.selectionMode
           ? null
           : FloatingActionButton.extended(
               key: const Key('add-item'),

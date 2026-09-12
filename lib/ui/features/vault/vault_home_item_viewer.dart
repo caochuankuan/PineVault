@@ -3,10 +3,20 @@ part of 'vault_home_screen.dart';
 enum _ViewerAction { edit }
 
 class _ItemViewer extends StatefulWidget {
-  const _ItemViewer({required this.viewModel, required this.item});
+  const _ItemViewer({
+    super.key,
+    required this.viewModel,
+    required this.item,
+    this.onClose,
+    this.onEdit,
+    this.onDeleted,
+  });
 
   final VaultViewModel viewModel;
   final VaultItem item;
+  final VoidCallback? onClose;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDeleted;
 
   @override
   State<_ItemViewer> createState() => _ItemViewerState();
@@ -174,7 +184,7 @@ class _ItemViewerState extends State<_ItemViewer> {
                   if (compact)
                     IconButton(
                       tooltip: '关闭',
-                      onPressed: _busy ? null : () => Navigator.pop(context),
+                      onPressed: _busy ? null : _close,
                       icon: const Icon(Icons.close),
                     ),
                 ],
@@ -369,7 +379,7 @@ class _ItemViewerState extends State<_ItemViewer> {
                     ),
                     const Spacer(),
                     OutlinedButton(
-                      onPressed: _busy ? null : () => Navigator.pop(context),
+                      onPressed: _busy ? null : _close,
                       child: const Text('关闭'),
                     ),
                     const SizedBox(width: 10),
@@ -388,7 +398,21 @@ class _ItemViewerState extends State<_ItemViewer> {
   }
 
   void _edit() {
+    final onEdit = widget.onEdit;
+    if (onEdit != null) {
+      onEdit();
+      return;
+    }
     Navigator.pop(context, _ViewerAction.edit);
+  }
+
+  void _close() {
+    final onClose = widget.onClose;
+    if (onClose != null) {
+      onClose();
+      return;
+    }
+    Navigator.pop(context);
   }
 
   Future<void> _copy(String value, String label) async {
@@ -453,7 +477,12 @@ class _ItemViewerState extends State<_ItemViewer> {
     final deleted = await widget.viewModel.deleteItem(widget.item);
     if (!mounted) return;
     if (deleted) {
-      Navigator.pop(context);
+      final onDeleted = widget.onDeleted;
+      if (onDeleted != null) {
+        onDeleted();
+      } else {
+        Navigator.pop(context);
+      }
     } else {
       setState(() => _busy = false);
       showAppMessage(context, widget.viewModel.errorMessage ?? '删除失败，请重试');

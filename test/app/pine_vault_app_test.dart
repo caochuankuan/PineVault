@@ -8,6 +8,59 @@ import 'package:pine_vault/ui/features/settings/webdav_settings_view_model.dart'
 import 'package:pine_vault/ui/features/vault/vault_view_model.dart';
 
 void main() {
+  testWidgets('shows the selected item in the desktop detail pane', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final now = DateTime(2026);
+    final vaultViewModel = _FakeVaultViewModel(
+      items: [
+        VaultItem(
+          id: 'desktop-item',
+          type: VaultItemType.login,
+          title: '桌面测试条目',
+          username: 'desktop-user',
+          password: 'desktop-password',
+          urls: const ['example.com'],
+          notes: '',
+          favorite: false,
+          createdAt: now,
+          updatedAt: now,
+          revision: 1,
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      PineVaultApp(
+        vaultViewModel: vaultViewModel,
+        webDavSettingsViewModel: _FakeWebDavSettingsViewModel(),
+        backupViewModel: _FakeBackupViewModel(),
+      ),
+    );
+
+    expect(find.text('选择一个条目，或创建新密码'), findsOneWidget);
+    final addButton = find.byKey(const Key('add-item'));
+    expect(addButton, findsOneWidget);
+    expect(
+      find.ancestor(of: addButton, matching: find.byType(AppBar)),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(of: addButton, matching: find.byType(FloatingActionButton)),
+      findsNothing,
+    );
+    await tester.tap(find.text('桌面测试条目'));
+    await tester.pump();
+
+    expect(find.text('选择一个条目，或创建新密码'), findsNothing);
+    expect(find.text('密码'), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+  });
+
   testWidgets(
     'locks after 60 background seconds and authenticates only after resume',
     (tester) async {
@@ -89,6 +142,11 @@ void _resume(WidgetTester tester) {
 }
 
 class _FakeVaultViewModel extends ChangeNotifier implements VaultViewModel {
+  _FakeVaultViewModel({this.items = const []});
+
+  @override
+  final List<VaultItem> items;
+
   VaultAppState _state = VaultAppState.unlocked;
   bool _automaticDeviceUnlock = true;
   int lockCalls = 0;
@@ -141,9 +199,6 @@ class _FakeVaultViewModel extends ChangeNotifier implements VaultViewModel {
 
   @override
   bool get selectionMode => false;
-
-  @override
-  List<VaultItem> get items => const [];
 
   @override
   List<VaultGroup> get groups => const [];
