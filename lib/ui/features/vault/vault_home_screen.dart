@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/models/kdbx_transfer_data.dart';
+import '../../../data/services/native_autofill_service.dart';
 import '../../../data/services/totp_service.dart';
 import '../../../domain/models/totp_config.dart';
 import '../../../domain/models/vault_item.dart';
@@ -39,12 +40,34 @@ class VaultHomeScreen extends StatefulWidget {
   State<VaultHomeScreen> createState() => _VaultHomeScreenState();
 }
 
-class _VaultHomeScreenState extends State<VaultHomeScreen> {
+class _VaultHomeScreenState extends State<VaultHomeScreen>
+    with WidgetsBindingObserver {
   static const _wideLayoutMinWidth = 900.0;
 
   bool _automaticBackupChecked = false;
   bool _automaticBackupCheckScheduled = false;
   String? _activeItemId;
+  bool _autofillEnabled = false;
+  bool _autofillBackgroundAllowed = false;
+  bool _autofillBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refreshAutofillStatus();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshAutofillStatus();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +107,7 @@ class _VaultHomeScreenState extends State<VaultHomeScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            onSelected: (action) => _handleMenu(context, action),
+            onSelected: _handleMenuAction,
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: _VaultMenuAction.sync,
@@ -139,6 +162,22 @@ class _VaultHomeScreenState extends State<VaultHomeScreen> {
                   active: viewModel.deviceUnlockEnabled,
                 ),
               ),
+              if (NativeAutofillService.isSupported)
+                PopupMenuItem(
+                  value: _VaultMenuAction.autofill,
+                  enabled: !_autofillBusy,
+                  child: _MenuRow(
+                    icon: _autofillEnabled
+                        ? Icons.password
+                        : Icons.password_outlined,
+                    label: !_autofillEnabled
+                        ? '开启自动填充'
+                        : _autofillBackgroundAllowed
+                        ? '关闭自动填充'
+                        : '允许后台自动填充',
+                    active: _autofillEnabled && _autofillBackgroundAllowed,
+                  ),
+                ),
               const PopupMenuDivider(),
               PopupMenuItem(
                 value: _VaultMenuAction.multiSelect,
@@ -350,6 +389,57 @@ class _VaultHomeScreenState extends State<VaultHomeScreen> {
       }
     });
   }
+
+  Future<void> _handleMenuAction(_VaultMenuAction action) async {
+    if (action == _VaultMenuAction.autofill) {
+      await _toggleAutofill();
+      return;
+    }
+    if (!mounted) return;
+    await _handleMenu(context, action);
+  }
+
+  Future<void> _refreshAutofillStatus() async {
+    if (!NativeAutofillService.isSupported) return;
+    try {
+      final status = await Future.wait([
+        NativeAutofillService.isEnabled(),
+        NativeAutofillService.isBackgroundAllowed(),
+      ]);
+      if (mounted) {
+        setState(() {
+          _autofillEnabled = status[0];
+          _autofillBackgroundAllowed = status[1];
+        });
+      }
+    } on PlatformException {
+      if (mounted) {
+        setState(() {
+          _autofillEnabled = false;
+          _autofillBackgroundAllowed = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleAutofill() async {
+    if (_autofillBusy) return;
+    setState(() => _autofillBusy = true);
+    try {
+      if (_autofillEnabled && !_autofillBackgroundAllowed) {
+        await NativeAutofillService.requestBackgroundAccess();
+      } else if (_autofillEnabled) {
+        await NativeAutofillService.disable();
+      } else {
+        await NativeAutofillService.enable();
+      }
+      await _refreshAutofillStatus();
+    } on PlatformException {
+      if (mounted) showAppMessage(context, '无法打开自动填充设置');
+    } finally {
+      if (mounted) setState(() => _autofillBusy = false);
+    }
+  }
 }
 
 enum _VaultMenuAction {
@@ -360,6 +450,7 @@ enum _VaultMenuAction {
   groupManagement,
   changeMasterPassword,
   deviceUnlock,
+  autofill,
   importKdbx,
   exportKdbx,
   multiSelect,
@@ -434,6 +525,8 @@ Future<void> _handleMenu(BuildContext context, _VaultMenuAction action) async {
         builder: (_) =>
             DeviceUnlockSheet(disable: viewModel.deviceUnlockEnabled),
       );
+    case _VaultMenuAction.autofill:
+      break;
     case _VaultMenuAction.importKdbx:
       await _importKdbx(context, viewModel);
     case _VaultMenuAction.exportKdbx:
