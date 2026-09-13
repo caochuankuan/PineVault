@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.CancellationSignal
 import android.service.autofill.AutofillService
+import android.service.autofill.Dataset
 import android.service.autofill.FillCallback
 import android.service.autofill.FillRequest
 import android.service.autofill.FillResponse
@@ -71,13 +72,16 @@ class PineVaultAutofillService : AutofillService() {
                 },
         )
         val menuPresentation = lockedPresentation()
+        val dataset = Dataset.Builder(menuPresentation).apply {
+            fields.candidateIds.forEach { id ->
+                setValue(id, null, menuPresentation)
+            }
+            setAuthentication(pendingIntent.intentSender)
+            setId("pinevault_locked")
+        }.build()
         @Suppress("DEPRECATION")
         val response = FillResponse.Builder()
-            .setAuthentication(
-                fields.candidateIds.toTypedArray(),
-                pendingIntent.intentSender,
-                menuPresentation,
-            )
+            .addDataset(dataset)
             .build()
         callback.onSuccess(response)
         Log.i(TAG, "request=${request.id} returned authenticated response")
@@ -88,8 +92,8 @@ class PineVaultAutofillService : AutofillService() {
     }
 
     private fun lockedPresentation(): RemoteViews =
-        RemoteViews(packageName, android.R.layout.simple_list_item_1).apply {
-            setTextViewText(android.R.id.text1, "使用松匣填充")
+        RemoteViews(packageName, R.layout.autofill_presentation).apply {
+            setTextViewText(R.id.autofill_label, "填充")
         }
 
     companion object {

@@ -3,7 +3,6 @@ package app.pinevault.client
 import android.content.Intent
 import android.os.Build
 import android.service.autofill.Dataset
-import android.service.autofill.FillResponse
 import android.view.autofill.AutofillId
 import android.view.autofill.AutofillManager
 import android.view.autofill.AutofillValue
@@ -68,9 +67,11 @@ class AutofillAuthActivity : FlutterFragmentActivity() {
             }
             setId("pinevault_selected")
         }.build()
-        val response = FillResponse.Builder().addDataset(dataset).build()
         val reply = Intent().apply {
-            putExtra(AutofillManager.EXTRA_AUTHENTICATION_RESULT, response)
+            putExtra(AutofillManager.EXTRA_AUTHENTICATION_RESULT, dataset)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                putExtra(AutofillManager.EXTRA_AUTHENTICATION_RESULT_EPHEMERAL_DATASET, true)
+            }
         }
         setResult(RESULT_OK, reply)
         finish()
