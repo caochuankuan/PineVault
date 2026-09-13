@@ -32,7 +32,7 @@ class AppDependencies {
   final WebDavSettingsViewModel webDavSettingsViewModel;
   final BackupViewModel backupViewModel;
 
-  static Future<AppDependencies> create() async {
+  static Future<AppDependencies> create({bool enableVaultSync = true}) async {
     final sodium = await SodiumSumoInit.init();
     final codec = const VaultCodec();
     final repository = VaultRepository(
@@ -70,6 +70,7 @@ class AppDependencies {
       syncVault: syncVault,
       restoreVault: restoreVault,
       syncHistoryService: SyncHistoryService(),
+      enableVaultSync: enableVaultSync,
     );
     return AppDependencies._(
       vaultViewModel: vaultViewModel,

@@ -38,12 +38,14 @@ class VaultViewModel extends ChangeNotifier {
     required SyncVaultUseCase syncVault,
     required RestoreVaultUseCase restoreVault,
     required SyncHistoryService syncHistoryService,
+    bool enableVaultSync = true,
   }) : _repository = repository,
        _deviceUnlockService = deviceUnlockService,
        _kdbxTransferService = kdbxTransferService,
        _syncVault = syncVault,
        _restoreVault = restoreVault,
-       _syncHistoryService = syncHistoryService;
+       _syncHistoryService = syncHistoryService,
+       _enableVaultSync = enableVaultSync;
 
   final VaultRepository _repository;
   final DeviceUnlockService _deviceUnlockService;
@@ -51,6 +53,7 @@ class VaultViewModel extends ChangeNotifier {
   final SyncVaultUseCase _syncVault;
   final RestoreVaultUseCase _restoreVault;
   final SyncHistoryService _syncHistoryService;
+  final bool _enableVaultSync;
   VaultAppState _state = VaultAppState.initializing;
   String? _errorMessage;
   String? _syncMessage;
@@ -200,8 +203,12 @@ class VaultViewModel extends ChangeNotifier {
     );
     if (succeeded) {
       _automaticDeviceUnlock = true;
-      _startPeriodicSync();
-      unawaited(_performSync(trigger: '解锁自动同步', quietIfUnconfigured: true));
+      if (_enableVaultSync) {
+        _startPeriodicSync();
+        unawaited(
+          _performSync(trigger: '解锁自动同步', quietIfUnconfigured: true),
+        );
+      }
     }
   }
 
@@ -220,9 +227,13 @@ class VaultViewModel extends ChangeNotifier {
       await _repository.unlockWithDeviceKey(rawKey);
       _state = VaultAppState.unlocked;
       _automaticDeviceUnlock = true;
-      _startPeriodicSync();
       notifyListeners();
-      unawaited(_performSync(trigger: '解锁自动同步', quietIfUnconfigured: true));
+      if (_enableVaultSync) {
+        _startPeriodicSync();
+        unawaited(
+          _performSync(trigger: '解锁自动同步', quietIfUnconfigured: true),
+        );
+      }
     } catch (error) {
       _state = VaultAppState.locked;
       _errorMessage = _readableError(error);

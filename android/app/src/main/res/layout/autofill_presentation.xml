@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:minWidth="128dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingTop="11dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="11dp"
+    android:background="@drawable/autofill_presentation_background">
+
+    <ImageView
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:contentDescription="@string/autofill_label"
+        android:src="@drawable/ic_autofill_shield" />
+
+    <TextView
+        android:id="@+id/autofill_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="9dp"
+        android:text="填充"
+        android:textColor="#176B52"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+</LinearLayout>
