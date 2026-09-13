@@ -1,19 +1,52 @@
 package app.pinevault.client
 
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.os.Bundle
 import android.os.Build
 import android.service.autofill.Dataset
 import android.view.autofill.AutofillId
 import android.view.autofill.AutofillManager
 import android.view.autofill.AutofillValue
+import android.view.Gravity
+import android.view.MotionEvent
+import android.view.WindowManager
 import android.widget.RemoteViews
 import io.flutter.embedding.android.FlutterFragmentActivity
+import io.flutter.embedding.android.RenderMode
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
 class AutofillAuthActivity : FlutterFragmentActivity() {
     override fun getDartEntrypointFunctionName(): String = "autofillEntryPoint"
+
+    override fun getRenderMode(): RenderMode = RenderMode.texture
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        window.setDimAmount(0.32f)
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_DIM_BEHIND or
+                WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM,
+        )
+        window.setGravity(Gravity.CENTER)
+        window.setLayout(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+        )
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_OUTSIDE) {
+            setResult(RESULT_CANCELED)
+            finish()
+            return true
+        }
+        return super.dispatchTouchEvent(event)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

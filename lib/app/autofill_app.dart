@@ -28,6 +28,7 @@ class AutofillApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF176B52)),
+          inputDecorationTheme: _autofillInputTheme(),
           useMaterial3: true,
         ),
         darkTheme: ThemeData(
@@ -35,13 +36,43 @@ class AutofillApp extends StatelessWidget {
             seedColor: const Color(0xFF72D7B2),
             brightness: Brightness.dark,
           ),
+          inputDecorationTheme: _autofillInputTheme(),
           useMaterial3: true,
         ),
-        home: _AutofillRouter(request: request),
+        home: Stack(
+          fit: StackFit.expand,
+          children: [
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: NativeAutofillAuth.cancel,
+              child: const SizedBox.expand(),
+            ),
+            Center(
+              child: FractionallySizedBox(
+                widthFactor: 0.92,
+                heightFactor: 0.64,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: _AutofillRouter(request: request),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+
+InputDecorationTheme _autofillInputTheme() => const InputDecorationTheme(
+  filled: true,
+  isDense: true,
+  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.all(Radius.circular(16)),
+    borderSide: BorderSide.none,
+  ),
+);
 
 class _AutofillRouter extends StatelessWidget {
   const _AutofillRouter({required this.request});
@@ -106,69 +137,116 @@ class _AutofillPickerState extends State<_AutofillPicker> {
     );
     final query = _searchController.text.trim().toLowerCase();
     final source = query.isEmpty && matched.isNotEmpty ? matched : allItems;
-    final items = source.where((item) {
-      return query.isEmpty ||
-          item.title.toLowerCase().contains(query) ||
-          item.username.toLowerCase().contains(query) ||
-          item.urls.any((url) => url.toLowerCase().contains(query));
-    }).toList(growable: false);
+    final items = source
+        .where((item) {
+          return query.isEmpty ||
+              item.title.toLowerCase().contains(query) ||
+              item.username.toLowerCase().contains(query) ||
+              item.urls.any((url) => url.toLowerCase().contains(query));
+        })
+        .toList(growable: false);
     return Scaffold(
-      appBar: AppBar(
-        title: const VaultBrand(compact: true),
-        actions: [
-          IconButton(
-            tooltip: '取消',
-            onPressed: _submitting ? null : NativeAutofillAuth.cancel,
-            icon: const Icon(Icons.close),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: TextField(
-                controller: _searchController,
-                enabled: !_submitting,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search),
-                  hintText: '搜索名称、用户名或网站',
-                  border: const OutlineInputBorder(),
-                  errorText: _error,
+      body: Column(
+        children: [
+          SizedBox(
+            height: 52,
+            child: Row(
+              children: [
+                const SizedBox(width: 16),
+                const Expanded(child: VaultBrand(compact: true)),
+                IconButton(
+                  tooltip: '取消',
+                  onPressed: _submitting ? null : NativeAutofillAuth.cancel,
+                  icon: const Icon(Icons.close),
                 ),
+                const SizedBox(width: 4),
+              ],
+            ),
+          ),
+          Expanded(
+            child: SafeArea(
+              top: false,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                    child: TextField(
+                      controller: _searchController,
+                      enabled: !_submitting,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search),
+                        hintText: '搜索名称、用户名或网站',
+                        filled: true,
+                        fillColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerLow,
+                  isDense: true,
+                  prefixIconConstraints: const BoxConstraints(
+                    minWidth: 44,
+                    minHeight: 38,
+                    maxHeight: 38,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.outlineVariant
+                                .withValues(alpha: 0.55),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 1.5,
+                          ),
+                        ),
+                        errorText: _error,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: items.isEmpty
+                        ? const Center(child: Text('没有可填充的登录条目'))
+                        : ListView.builder(
+                            primary: false,
+                            padding: EdgeInsets.zero,
+                            itemCount: items.length,
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+                              return ListTile(
+                                enabled: !_submitting,
+                                leading: CircleAvatar(
+                                  child: Text(
+                                    item.title.trim().isEmpty
+                                        ? '?'
+                                        : item.title.trim()[0].toUpperCase(),
+                                  ),
+                                ),
+                                title: Text(item.title),
+                                subtitle: Text(
+                                  item.username,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onTap: () => _complete(item),
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
             ),
-            Expanded(
-              child: items.isEmpty
-                  ? const Center(child: Text('没有可填充的登录条目'))
-                  : ListView.builder(
-                      itemCount: items.length,
-                      itemBuilder: (context, index) {
-                        final item = items[index];
-                        return ListTile(
-                          enabled: !_submitting,
-                          leading: CircleAvatar(
-                            child: Text(
-                              item.title.trim().isEmpty
-                                  ? '?'
-                                  : item.title.trim()[0].toUpperCase(),
-                            ),
-                          ),
-                          title: Text(item.title),
-                          subtitle: Text(
-                            item.username,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          onTap: () => _complete(item),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -204,18 +282,33 @@ class _Message extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const VaultBrand(compact: true)),
-    body: Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (busy) ...[
-            const CircularProgressIndicator(),
-            const SizedBox(height: 20),
-          ],
-          Text(message),
-        ],
-      ),
+    body: Column(
+      children: [
+        const SizedBox(
+          height: 48,
+          child: Padding(
+            padding: EdgeInsets.only(left: 16),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: VaultBrand(compact: true),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (busy) ...[
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 20),
+                ],
+                Text(message),
+              ],
+            ),
+          ),
+        ),
+      ],
     ),
   );
 }
